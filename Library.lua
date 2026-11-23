@@ -50,6 +50,9 @@ local LC = Enum.LineJoinMode
 local SBD = Enum.ScrollingDirection
 local SBA = Enum.ScrollBarInset
 
+local UI_FONT = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal)
+local UI_CORNER = UD(0, 5)
+
 local Library = {
 	Elements = {};
 	SubElements = {};
@@ -82,6 +85,17 @@ local RunService = Services:GetService("RunService")
 local TweenService = Services:GetService("TweenService")
 
 local Client = PlayerService.LocalPlayer
+
+local function IsMobileDevice(): boolean
+	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+		return true
+	end
+	local Camera = workspace.CurrentCamera
+	if Camera and Camera.ViewportSize.X <= 850 and UserInputService.TouchEnabled then
+		return true
+	end
+	return false
+end
 
 local Keys = {
 	["Unknown"]           = "Unknown",
@@ -182,14 +196,13 @@ end
 local function Overwrite(to_overwrite, overwrite_with)
 	for i, v in pairs(overwrite_with) do
 		if v ~= to_overwrite[i] then
-
-		if type(v) == "table" and type(to_overwrite[i]) == "table" then
-			Overwrite(to_overwrite[i], v)
-		elseif type(v) == "table" then
-			to_overwrite[i] = Overwrite({}, v)
-		else
-			to_overwrite[i] = v
-		end
+			if type(v) == "table" and type(to_overwrite[i]) == "table" then
+				Overwrite(to_overwrite[i], v)
+			elseif type(v) == "table" then
+				to_overwrite[i] = Overwrite({}, v)
+			else
+				to_overwrite[i] = v
+			end
 		end
 	end
 
@@ -258,7 +271,6 @@ local function ResolveIcon(Icon: number | string?): string
 	if AsString:match("^rbxasset") then
 		return AsString
 	end
-	-- bare numeric string → asset id
 	if AsString:match("^%d+$") then
 		return "rbxassetid://" .. AsString
 	end
@@ -268,7 +280,6 @@ local function ResolveIcon(Icon: number | string?): string
 	if Id then
 		return "rbxassetid://" .. tostring(Id)
 	end
-	-- unknown name: empty (caller can hide), never force hash
 	return ""
 end
 
@@ -298,11 +309,9 @@ local function ClampToScreen(Object: GuiObject, Position: UDim2): UDim2
 	local MinX = Pad
 	local MinY = Pad
 	if IgnoresInset then
-
 		MinY = Inset.Y + Pad
 		UsableH = Viewport.Y
 	else
-
 		UsableH = Viewport.Y - Inset.Y
 	end
 
@@ -418,7 +427,6 @@ local function BindDrag(Object: GuiObject, Handle: GuiObject?, ClampScreen: bool
 	UserInputService.InputEnded:Connect(function(Input)
 		if Input.UserInputType == UIT.MouseButton1 or Input.UserInputType == UIT.Touch then
 			if Dragging then
-
 				ApplyPosition(UD2(
 					StartPosition.X.Scale,
 					StartPosition.X.Offset + CurrentDelta.X,
@@ -593,7 +601,6 @@ local function RelayoutColumn(Column: Frame, Placeholder: Frame?, InsertIndex: n
 	end
 
 	for Index, SectionFrame in Sections do
-
 		local Slot = Index - 1
 		if Slot >= InsertIndex then
 			Slot = Slot + 1
@@ -634,7 +641,6 @@ local function StopSectionDrag(Commit: boolean)
 	ClearSectionDragVisuals()
 
 	if Commit and TargetColumn then
-
 		local Sections = ListColumnSections(TargetColumn, Frame)
 		InsertIndex = MC(InsertIndex, 0, #Sections)
 
@@ -664,7 +670,6 @@ local function StopSectionDrag(Commit: boolean)
 			NormalizeColumnOrders(SectionDrag.SourceParent)
 		end
 		pcall(function() Library.SaveLayout() end)
-
 	else
 		Frame.Parent = SectionDrag.SourceParent
 		Frame.LayoutOrder = SectionDrag.SourceOrder
@@ -714,17 +719,17 @@ local function EnsurePlaceholder(Height: number): Frame
 
 	local Placeholder = Add("Frame", {
 		Name = "SectionPlaceholder";
-		BackgroundColor3 = RGB(78, 88, 129);
+		BackgroundColor3 = Library.Theme.AccentDark;
 		BackgroundTransparency = 0.65;
 		BorderSizePixel = 0;
 		Size = UD2(1, 0, 0, Height);
 		ZIndex = 5;
 	}) :: Frame
-	Add("UICorner", { Parent = Placeholder; CornerRadius = UD(0, 5); })
+	Add("UICorner", { Parent = Placeholder; CornerRadius = UI_CORNER; })
 	Add("UIStroke", {
 		Parent = Placeholder;
 		ApplyStrokeMode = ASM.Border;
-		Color = RGB(138, 156, 229);
+		Color = Library.Theme.Accent;
 		Thickness = 1.5;
 		Transparency = 0.2;
 	})
@@ -768,7 +773,6 @@ local function UpdateSectionDrag(MousePos: Vector2)
 	local PageRight = PageFrame:FindFirstChild("Right")
 	local Other = if Column == PageLeft then PageRight else PageLeft
 	if Other and Other ~= Column then
-
 		if SectionDrag.Placeholder and SectionDrag.Placeholder.Parent == Other then
 			SectionDrag.Placeholder.Parent = Column
 		end
@@ -889,7 +893,7 @@ local function SectionBuilder(Container: Frame)
 			Parent = Column;
 			Name = "Section";
 			AutomaticSize = AS.Y;
-			BackgroundColor3 = RGB(15, 14, 15);
+			BackgroundColor3 = Library.Theme.Surface;
 			BorderColor3 = RGB(0, 0, 0);
 			BorderSizePixel = 0;
 			Size = UFS(1, 0);
@@ -898,7 +902,7 @@ local function SectionBuilder(Container: Frame)
 		local Header = Add("Frame", {
 			Parent = SectionFrame;
 			Name = "Header";
-			BackgroundColor3 = RGB(20, 20, 21);
+			BackgroundColor3 = Library.Theme.SurfaceAlt;
 			BorderColor3 = RGB(0, 0, 0);
 			BorderSizePixel = 0;
 			Size = UD2(1, 0, 0, 35);
@@ -907,19 +911,19 @@ local function SectionBuilder(Container: Frame)
 			Parent = SectionFrame;
 			Name = "Elements";
 			AutomaticSize = AS.Y;
-			BackgroundColor3 = RGB(255, 255, 255);
+			BackgroundColor3 = Library.Theme.Text;
 			BackgroundTransparency = 1;
 			BorderColor3 = RGB(0, 0, 0);
 			BorderSizePixel = 0;
 			Position = UFO(0, 35);
 			Size = UFS(1, 0);
 		}) :: Frame
-		Add("UICorner", { Parent = SectionFrame; CornerRadius = UD(0, 5); })
-		Add("UICorner", { Parent = Header; BottomLeftRadius = UD(0, 0); BottomRightRadius = UD(0, 0); TopLeftRadius = UD(0, 5); TopRightRadius = UD(0, 5); })
+		Add("UICorner", { Parent = SectionFrame; CornerRadius = UI_CORNER; })
+		Add("UICorner", { Parent = Header; BottomLeftRadius = UD(0, 0); BottomRightRadius = UD(0, 0); TopLeftRadius = UI_CORNER; TopRightRadius = UI_CORNER; })
 		Add("ImageLabel", {
 			Parent = Header;
 			Name = "Icon";
-			BackgroundColor3 = RGB(255, 255, 255);
+			BackgroundColor3 = Library.Theme.Text;
 			BackgroundTransparency = 1;
 			BorderColor3 = RGB(0, 0, 0);
 			BorderSizePixel = 0;
@@ -939,18 +943,19 @@ local function SectionBuilder(Container: Frame)
 			Parent = Header;
 			Name = "Title";
 			AutomaticSize = AS.XY;
-			BackgroundColor3 = RGB(255, 255, 255);
+			BackgroundColor3 = Library.Theme.Text;
 			BackgroundTransparency = 1;
 			BorderColor3 = RGB(0, 0, 0);
 			BorderSizePixel = 0;
-			FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+			FontFace = UI_FONT;
 			LayoutOrder = 1;
 			Text = Section.Name;
-			TextColor3 = RGB(255, 255, 255);
+			TextColor3 = Library.Theme.Text;
 			TextSize = 14;
 		})
 		local SectionStroke = Add("UIStroke", { Parent = SectionFrame; ApplyStrokeMode = ASM.Border; Color = Library.Theme.SectionBorder; Thickness = 1; })
 		Library.ThemeLink(SectionFrame, "BackgroundColor3", "Surface")
+		Library.ThemeLink(Header, "BackgroundColor3", "SurfaceAlt")
 		Library.ThemeLink(SectionStroke, "Color", "SectionBorder")
 		Add("UIPadding", {
 			Parent = Elements;
@@ -1020,18 +1025,18 @@ local function SectionBuilder(Container: Frame)
 end
 
 local function PageContent(Entry: {}, Container: Frame, Registry: {}, OnOpen: (() -> ())?, OnClose: (() -> ())?)
-	local ContentFrame = Add("Frame", { Parent = Container; Name = "PageFrame"; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UD2(0, 0, 0, 12); Size = UFS(1, 1); Visible = false; }) :: Frame
+	local ContentFrame = Add("Frame", { Parent = Container; Name = "PageFrame"; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UD2(0, 0, 0, 12); Size = UFS(1, 1); Visible = false; }) :: Frame
 
 	local function MakeColumn(Name: string, Props: {}): ScrollingFrame
 		local Column = Add("ScrollingFrame", {
 			Parent = ContentFrame;
 			Name = Name;
-			BackgroundColor3 = RGB(255, 255, 255);
+			BackgroundColor3 = Library.Theme.Text;
 			BackgroundTransparency = 1;
 			BorderColor3 = RGB(0, 0, 0);
 			BorderSizePixel = 0;
 			ScrollBarThickness = 0;
-			ScrollBarImageColor3 = RGB(78, 88, 129);
+			ScrollBarImageColor3 = Library.Theme.AccentDark;
 			ScrollBarImageTransparency = 1;
 			ScrollingDirection = SBD.Y;
 			CanvasSize = UD2(0, 0, 0, 0);
@@ -1074,7 +1079,6 @@ local function PageContent(Entry: {}, Container: Frame, Registry: {}, OnOpen: ((
 	Entry.IsOpen = false
 
 	Entry.Open = function()
-
 		if Entry.IsOpen then
 			return
 		end
@@ -1115,10 +1119,10 @@ Library.Elements.Label = function(self: Library, propertyTable: {})
 	}, propertyTable or {})
 	setmetatable(Label, { __index = Library.SubElements })
 
-	local LabelFrame = Add("Frame", { Parent = self.Content; Name = "LabelFrame";BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 14); }) :: Frame
-	local LeftContent = Add("Frame", { Parent = LabelFrame; Name = "LeftContent"; AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; }) :: Frame
-	local RightContent = Add("Frame", { Parent = LabelFrame; Name = "RightContent"; AnchorPoint = V2(1, 0); AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFS(1, 0); }) :: Frame
-	Add("TextLabel", { LayoutOrder = 99; Parent = LeftContent; Name = "Label"; AnchorPoint = V2(0, 0.5); AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Position = UD2(0, 38, 0.5, 0); Size = UFO(0, 9); Text = Label.Text; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.2; })
+	local LabelFrame = Add("Frame", { Parent = self.Content; Name = "LabelFrame"; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 14); }) :: Frame
+	local LeftContent = Add("Frame", { Parent = LabelFrame; Name = "LeftContent"; AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; }) :: Frame
+	local RightContent = Add("Frame", { Parent = LabelFrame; Name = "RightContent"; AnchorPoint = V2(1, 0); AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFS(1, 0); }) :: Frame
+	Add("TextLabel", { LayoutOrder = 99; Parent = LeftContent; Name = "Label"; AnchorPoint = V2(0, 0.5); AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Position = UD2(0, 38, 0.5, 0); Size = UFO(0, 9); Text = Label.Text; TextColor3 = Library.Theme.Text; TextSize = 13; TextTransparency = 0.2; })
 	Add("UIListLayout", { Parent = LeftContent; FillDirection = FD.Horizontal; Padding = UD(0, 10); SortOrder = SO.LayoutOrder; VerticalAlignment = VFA.Center; })
 	Add("UIListLayout", { Parent = RightContent; FillDirection = FD.Horizontal; HorizontalAlignment = HFA.Right; Padding = UD(0, 5); SortOrder = SO.LayoutOrder; VerticalAlignment = VFA.Center; })
 
@@ -1142,17 +1146,17 @@ Library.Elements.Slider = function(self: Library, propertyTable: {})
 
 	local Decimals = MM(#(tostring(Slider.Increment):match("%.(%d+)") or ""), 4)
 
-	local SliderFrame = Add("Frame", { Parent = self.Content; Name = "SliderFrame"; AutomaticSize = AS.Y; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(1, 0); }) :: Frame
-	local Button = Add("TextButton", { Parent = SliderFrame; Name = "Button"; AutoButtonColor = false; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Position = UFO(0, 18); Size = UD2(1, 0, 0, 12); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
-	local Overlay = Add("Frame", { Parent = Button; Name = "Overlay"; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(0, 0, 1, 0); }) :: Frame
+	local SliderFrame = Add("Frame", { Parent = self.Content; Name = "SliderFrame"; AutomaticSize = AS.Y; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(1, 0); }) :: Frame
+	local Button = Add("TextButton", { Parent = SliderFrame; Name = "Button"; AutoButtonColor = false; BackgroundColor3 = Library.Theme.SurfaceAlt; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Position = UFO(0, 18); Size = UD2(1, 0, 0, 12); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
+	local Overlay = Add("Frame", { Parent = Button; Name = "Overlay"; BackgroundColor3 = Library.Theme.Text; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(0, 0, 1, 0); }) :: Frame
 	local Circle = Add("Frame", { Parent = Button; Name = "Circle"; AnchorPoint = V2(1, 0.5); BackgroundColor3 = RGB(0, 0, 0); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UD2(1, -3, 0.5, 0); Size = UFO(8, 8); }) :: Frame
-	Add("TextLabel", { Parent = SliderFrame; Name = "Title"; AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UFO(0, 9); Text = Slider.Name; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.2; })
-	local Amount = Add("TextLabel", { Parent = SliderFrame; Name = "Amount"; AnchorPoint = V2(1, 0); AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Position = UFS(1, 0); Size = UFO(0, 9); Text = ""; TextColor3 = RGB(255, 255, 255); TextSize = 13; }) :: TextLabel
-	Add("UICorner", { Parent = Button; CornerRadius = UD(0, 5); })
+	Add("TextLabel", { Parent = SliderFrame; Name = "Title"; AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFO(0, 9); Text = Slider.Name; TextColor3 = Library.Theme.Text; TextSize = 13; TextTransparency = 0.2; })
+	local Amount = Add("TextLabel", { Parent = SliderFrame; Name = "Amount"; AnchorPoint = V2(1, 0); AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Position = UFS(1, 0); Size = UFO(0, 9); Text = ""; TextColor3 = Library.Theme.Text; TextSize = 13; }) :: TextLabel
+	Add("UICorner", { Parent = Button; CornerRadius = UI_CORNER; })
 	local SliderGrad = Add("UIGradient", { Parent = Overlay; Color = CS{ CSK(0, Library.Theme.AccentDark), CSK(1, Library.Theme.Accent) }; Rotation = -90; })
 	Library.ThemeLink(SliderGrad, "Gradient", "AccentDark", "Accent")
-	Add("UICorner", { Parent = Overlay; CornerRadius = UD(0, 5); })
-	Add("UICorner", { Parent = Circle; CornerRadius = UD(1, 0); })
+	Add("UICorner", { Parent = Overlay; CornerRadius = UI_CORNER; })
+	Add("UICorner", { Parent = Circle; CornerRadius = UI_CORNER; })
 
 	Slider.Set = function(Value: number)
 		Value = MC(MR(Value / Slider.Increment) * Slider.Increment, Slider.Min, Slider.Max)
@@ -1194,20 +1198,20 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 		Callback = function() end,
 	}, propertyTable or {})
 
-	local OptionList = Add("TextButton", { Parent = Library._Instance; Name = "Options"; AutoButtonColor = false; AutomaticSize = AS.Y; BackgroundColor3 = RGB(15, 14, 15); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFS(0.3761225640773773, 0.42204996943473816); Size = UFO(253, 0); Text = ""; Visible = false; ZIndex = PopupZ; }) :: TextButton
-	Add("UICorner", { Parent = OptionList; CornerRadius = UD(0, 5); })
-	Add("UIStroke", { Parent = OptionList; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
+	local OptionList = Add("TextButton", { Parent = Library._Instance; Name = "Options"; AutoButtonColor = false; AutomaticSize = AS.Y; BackgroundColor3 = Library.Theme.Surface; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFS(0.3761225640773773, 0.42204996943473816); Size = UFO(253, 0); Text = ""; Visible = false; ZIndex = PopupZ; }) :: TextButton
+	Add("UICorner", { Parent = OptionList; CornerRadius = UI_CORNER; })
+	Add("UIStroke", { Parent = OptionList; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	Add("UIPadding", { Parent = OptionList; })
 	Add("UIShadow", { Parent = OptionList; BlurRadius = UD(0, 20); Spread = UFO(5, 5); Transparency = 0.65; })
 	Add("UIListLayout", { Parent = OptionList; SortOrder = SO.LayoutOrder; })
 
-	local ButtonFrame = Add("Frame", { Parent = self.Content; Name = "ButtonFrame"; Active = true; AutomaticSize = AS.Y; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(1, 0); }) :: Frame
-	local InputFrame = Add("Frame", { Parent = ButtonFrame; Name = "InputFrame"; Active = true; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 18); Selectable = true; Size = UD2(1, 0, 0, 22); }) :: Frame
-	Add("TextLabel", { Parent = ButtonFrame; Name = "Title"; AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UFO(0, 9); Text = Dropdown.Name; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.2; })
-	Add("UICorner", { Parent = InputFrame; CornerRadius = UD(0, 5); })
+	local ButtonFrame = Add("Frame", { Parent = self.Content; Name = "ButtonFrame"; Active = true; AutomaticSize = AS.Y; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(1, 0); }) :: Frame
+	local InputFrame = Add("Frame", { Parent = ButtonFrame; Name = "InputFrame"; Active = true; BackgroundColor3 = Library.Theme.SurfaceAlt; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 18); Selectable = true; Size = UD2(1, 0, 0, 22); }) :: Frame
+	Add("TextLabel", { Parent = ButtonFrame; Name = "Title"; AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFO(0, 9); Text = Dropdown.Name; TextColor3 = Library.Theme.Text; TextSize = 13; TextTransparency = 0.2; })
+	Add("UICorner", { Parent = InputFrame; CornerRadius = UI_CORNER; })
 	Add("UIPadding", { Parent = InputFrame; PaddingLeft = UD(0, 10); PaddingRight = UD(0, 10); })
-	local Icon = Add("ImageLabel", { Parent = InputFrame; Name = "Icon"; AnchorPoint = V2(1, 0.5); BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://95865107607162"; ImageTransparency = 0.2; Position = UFS(1, 0.5); ResampleMode = Enum.ResamplerMode.Pixelated; ScaleType = SCL.Fit; Size = UFO(14, 14); }) :: ImageLabel
-	local InputText = Add("TextButton", { Parent = InputFrame; Name = "Input"; BackgroundColor3 = RGB(20, 20, 21); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UD2(1, -24, 1, 0); Text = ""; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.2; TextTruncate = ETT.SplitWord; TextXAlignment = TXA.Left; }) :: TextButton
+	local Icon = Add("ImageLabel", { Parent = InputFrame; Name = "Icon"; AnchorPoint = V2(1, 0.5); BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://95865107607162"; ImageTransparency = 0.2; Position = UFS(1, 0.5); ResampleMode = Enum.ResamplerMode.Pixelated; ScaleType = SCL.Fit; Size = UFO(14, 14); }) :: ImageLabel
+	local InputText = Add("TextButton", { Parent = InputFrame; Name = "Input"; BackgroundColor3 = Library.Theme.SurfaceAlt; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UD2(1, -24, 1, 0); Text = ""; TextColor3 = Library.Theme.Text; TextSize = 13; TextTransparency = 0.2; TextTruncate = ETT.SplitWord; TextXAlignment = TXA.Left; }) :: TextButton
 
 	local Buttons = {}
 
@@ -1231,7 +1235,7 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 			Tween(Button, {
 				BackgroundTransparency = Selected and 0 or 1;
 				TextTransparency = Selected and 0.15 or 0.45;
-				BackgroundColor3 = Selected and RGB(28, 30, 38) or RGB(20, 20, 21);
+				BackgroundColor3 = Selected and Library.Theme.SurfaceAlt or Library.Theme.Surface;
 			}, 0.1)
 		end
 	end
@@ -1260,14 +1264,14 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 		SearchBoxDrop = Add("TextBox", {
 			Parent = OptionList;
 			Name = "SearchBox";
-			BackgroundColor3 = RGB(20, 20, 21);
+			BackgroundColor3 = Library.Theme.SurfaceAlt;
 			BorderSizePixel = 0;
 			ClearTextOnFocus = false;
-			FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+			FontFace = UI_FONT;
 			PlaceholderText = "Search…";
-			PlaceholderColor3 = RGB(255, 255, 255);
+			PlaceholderColor3 = Library.Theme.Text;
 			Text = "";
-			TextColor3 = RGB(255, 255, 255);
+			TextColor3 = Library.Theme.Text;
 			TextSize = 13;
 			TextTransparency = 0.2;
 			TextXAlignment = TXA.Left;
@@ -1275,7 +1279,7 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 			LayoutOrder = -1;
 		})
 		Add("UIPadding", { Parent = SearchBoxDrop; PaddingLeft = UD(0, 10); PaddingRight = UD(0, 10); })
-		Add("UICorner", { Parent = SearchBoxDrop; CornerRadius = UD(0, 5); })
+		Add("UICorner", { Parent = SearchBoxDrop; CornerRadius = UI_CORNER; })
 		SearchBoxDrop:GetPropertyChangedSignal("Text"):Connect(function()
 			Build()
 		end)
@@ -1297,17 +1301,17 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 		end
 
 		for Index, Option in VisibleOptions do
-			local Button = Add("TextButton", { Parent = OptionList; Name = Option; AutoButtonColor = false; BackgroundColor3 = RGB(20, 20, 21); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); LayoutOrder = Index; Size = UD2(1, 0, 0, 22); Text = Option; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.5; TextWrapped = true; TextXAlignment = TXA.Left; }) :: TextButton
+			local Button = Add("TextButton", { Parent = OptionList; Name = Option; AutoButtonColor = false; BackgroundColor3 = Library.Theme.SurfaceAlt; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; LayoutOrder = Index; Size = UD2(1, 0, 0, 22); Text = Option; TextColor3 = Library.Theme.Text; TextSize = 13; TextTransparency = 0.5; TextWrapped = true; TextXAlignment = TXA.Left; }) :: TextButton
 			Add("UIPadding", { Parent = Button; PaddingLeft = UD(0, 10); PaddingRight = UD(0, 10); })
 
 			local First = Index == 1
 			local Last = Index == #VisibleOptions
 
 			Add("UICorner", { Parent = Button;
-				TopLeftRadius = First and UD(0, 5) or UD(0, 0);
-				TopRightRadius = First and UD(0, 5) or UD(0, 0);
-				BottomLeftRadius = Last and UD(0, 5) or UD(0, 0);
-				BottomRightRadius = Last and UD(0, 5) or UD(0, 0);
+				TopLeftRadius = First and UI_CORNER or UD(0, 0);
+				TopRightRadius = First and UI_CORNER or UD(0, 0);
+				BottomLeftRadius = Last and UI_CORNER or UD(0, 0);
+				BottomRightRadius = Last and UI_CORNER or UD(0, 0);
 			})
 
 			Button.MouseEnter:Connect(function()
@@ -1319,7 +1323,7 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 				local Selected = IsSelected(Option)
 				Tween(Button, {
 					BackgroundTransparency = Selected and 0 or 1;
-					BackgroundColor3 = Selected and RGB(28, 30, 38) or RGB(20, 20, 21);
+					BackgroundColor3 = Selected and Library.Theme.SurfaceAlt or Library.Theme.Surface;
 				}, 0.08)
 			end)
 			Button.Activated:Connect(function()
@@ -1438,7 +1442,6 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 	end
 
 	if Dropdown.Multi then
-
 		Dropdown.Set(type(Dropdown.Value) == "table" and Dropdown.Value or {})
 	else
 		Dropdown.Set(Dropdown.Value ~= "" and Dropdown.Value or Dropdown.Options[1] or "")
@@ -1455,13 +1458,13 @@ Library.Elements.Input = function(self: Library, propertyTable: {})
 		Callback = function() end,
 	}, propertyTable or {})
 
-	local TextBox = Add("Frame", { Parent = self.Content; Name = "TextBox"; AutomaticSize = AS.Y; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(1, 0); }) :: Frame
-	local InputFrame = Add("Frame", { Parent = TextBox; Name = "InputFrame"; Active = true; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 18); Selectable = true; Size = UD2(1, 0, 0, 22); }) :: Frame
-	Add("TextLabel", { Parent = TextBox; Name = "Title"; AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UFO(0, 9); Text = Input.Name; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.2; })
-	local Box = Add("TextBox", { Parent = InputFrame; Name = "Input"; BackgroundColor3 = RGB(20, 20, 21); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; ClearTextOnFocus = false; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); PlaceholderColor3 = RGB(255, 255, 255); PlaceholderText = Input.Placeholder; Size = UD2(1, -24, 1, 0); Text = Input.Value; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.2; TextTruncate = ETT.SplitWord; TextXAlignment = TXA.Left; }) :: TextBox
-	Add("ImageLabel", { Parent = InputFrame; Name = "Icon"; AnchorPoint = V2(1, 0.5); BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://96386750273341"; ImageTransparency = 0.2; Position = UFS(1, 0.5); ResampleMode = Enum.ResamplerMode.Pixelated; Size = UFO(14, 14); })
+	local TextBox = Add("Frame", { Parent = self.Content; Name = "TextBox"; AutomaticSize = AS.Y; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(1, 0); }) :: Frame
+	local InputFrame = Add("Frame", { Parent = TextBox; Name = "InputFrame"; Active = true; BackgroundColor3 = Library.Theme.SurfaceAlt; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 18); Selectable = true; Size = UD2(1, 0, 0, 22); }) :: Frame
+	Add("TextLabel", { Parent = TextBox; Name = "Title"; AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFO(0, 9); Text = Input.Name; TextColor3 = Library.Theme.Text; TextSize = 13; TextTransparency = 0.2; })
+	local Box = Add("TextBox", { Parent = InputFrame; Name = "Input"; BackgroundColor3 = Library.Theme.SurfaceAlt; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; ClearTextOnFocus = false; FontFace = UI_FONT; PlaceholderColor3 = Library.Theme.Text; PlaceholderText = Input.Placeholder; Size = UD2(1, -24, 1, 0); Text = Input.Value; TextColor3 = Library.Theme.Text; TextSize = 13; TextTransparency = 0.2; TextTruncate = ETT.SplitWord; TextXAlignment = TXA.Left; }) :: TextBox
+	Add("ImageLabel", { Parent = InputFrame; Name = "Icon"; AnchorPoint = V2(1, 0.5); BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://96386750273341"; ImageTransparency = 0.2; Position = UFS(1, 0.5); ResampleMode = Enum.ResamplerMode.Pixelated; Size = UFO(14, 14); })
 	Add("UIPadding", { Parent = InputFrame; PaddingLeft = UD(0, 10); PaddingRight = UD(0, 10); })
-	Add("UICorner", { Parent = InputFrame; CornerRadius = UD(0, 5); })
+	Add("UICorner", { Parent = InputFrame; CornerRadius = UI_CORNER; })
 
 	Input.Set = function(Value: string)
 		Input.Value = Value
@@ -1545,16 +1548,16 @@ Library.Elements.Button = function(self: Library, propertyTable: {})
 		Parent = Frame;
 		Name = "Click";
 		AutoButtonColor = false;
-		BackgroundColor3 = RGB(22, 22, 24);
+		BackgroundColor3 = Library.Theme.SurfaceAlt;
 		BorderSizePixel = 0;
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		Size = UFS(1, 1);
 		Text = Button.Name;
-		TextColor3 = RGB(255, 255, 255);
+		TextColor3 = Library.Theme.Text;
 		TextSize = 13;
 		TextTransparency = 0.12;
 	})
-	Add("UICorner", { Parent = Click; CornerRadius = UD(0, 6); })
+	Add("UICorner", { Parent = Click; CornerRadius = UI_CORNER; })
 	local BtnStroke = Add("UIStroke", { Parent = Click; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	Library.ThemeLink(BtnStroke, "Color", "Border")
 	local Grad = Add("UIGradient", {
@@ -1568,7 +1571,7 @@ Library.Elements.Button = function(self: Library, propertyTable: {})
 
 	Click.MouseEnter:Connect(function()
 		Grad.Enabled = true
-		Tween(Click, { BackgroundColor3 = RGB(255, 255, 255); TextColor3 = RGB(12, 12, 14); TextTransparency = 0 }, 0.12)
+		Tween(Click, { BackgroundColor3 = Library.Theme.Text; TextColor3 = RGB(12, 12, 14); TextTransparency = 0 }, 0.12)
 	end)
 	Click.MouseLeave:Connect(function()
 		Grad.Enabled = false
@@ -1607,10 +1610,10 @@ Library.Elements.Paragraph = function(self: Library, propertyTable: {})
 		Add("TextLabel", {
 			Parent = Frame;
 			BackgroundTransparency = 1;
-			FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+			FontFace = UI_FONT;
 			Size = UD2(1, 0, 0, 16);
 			Text = Paragraph.Title;
-			TextColor3 = RGB(255, 255, 255);
+			TextColor3 = Library.Theme.Text;
 			TextSize = 13;
 			TextTransparency = 0.15;
 			TextXAlignment = TXA.Left;
@@ -1619,12 +1622,12 @@ Library.Elements.Paragraph = function(self: Library, propertyTable: {})
 	local Body = Add("TextLabel", {
 		Parent = Frame;
 		BackgroundTransparency = 1;
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		Position = Paragraph.Title ~= "" and UFO(0, 18) or UFO(0, 0);
 		AutomaticSize = AS.Y;
 		Size = UD2(1, 0, 0, 0);
 		Text = Paragraph.Body;
-		TextColor3 = RGB(255, 255, 255);
+		TextColor3 = Library.Theme.Text;
 		TextSize = 12;
 		TextTransparency = 0.45;
 		TextWrapped = true;
@@ -1650,12 +1653,12 @@ Library.SubElements.Toggle = function(self: Library, propertyTable: {})
 		Callback = function() end
 	}, propertyTable or {})
 
-	local Button = Add("TextButton", { Parent = self.LeftContent; Name = "Toggle"; AutoButtonColor = false; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Size = UFO(28, 14); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
+	local Button = Add("TextButton", { Parent = self.LeftContent; Name = "Toggle"; AutoButtonColor = false; BackgroundColor3 = Library.Theme.SurfaceAlt; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFO(28, 14); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
 	local Indicator = Add("Frame", { Parent = Button; Name = "Indicator"; AnchorPoint = V2(1, 0.5); BackgroundColor3 = RGB(0, 0, 0); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UD2(1, -3, 0.5, 0); Size = UFO(10, 10); ZIndex = 2; }) :: Frame
-	local Overlay = Add("Frame", { Parent = Button; Name = "Overlay"; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(1, 1); }) :: Frame
-	Add("UICorner", { Parent = Button; CornerRadius = UD(0, 6); })
-	Add("UICorner", { Parent = Indicator; CornerRadius = UD(1, 0); })
-	Add("UICorner", { Parent = Overlay; CornerRadius = UD(0, 6); })
+	local Overlay = Add("Frame", { Parent = Button; Name = "Overlay"; BackgroundColor3 = Library.Theme.Text; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(1, 1); }) :: Frame
+	Add("UICorner", { Parent = Button; CornerRadius = UI_CORNER; })
+	Add("UICorner", { Parent = Indicator; CornerRadius = UI_CORNER; })
+	Add("UICorner", { Parent = Overlay; CornerRadius = UI_CORNER; })
 	local ToggleGrad = Add("UIGradient", { Parent = Overlay; Color = CS{ CSK(0, Library.Theme.AccentDark), CSK(1, Library.Theme.Accent) }; Rotation = -90; })
 	Library.ThemeLink(ToggleGrad, "Gradient", "AccentDark", "Accent")
 
@@ -1706,40 +1709,40 @@ Library.SubElements.Keybind = function(self: Library, propertyTable: {})
 		Callback = function() end,
 	}, propertyTable or {})
 
-	local Settings = Add("ImageButton", { Parent = self.RightContent; Name = "Settings"; AutoButtonColor = false; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://132030186847627"; ImageTransparency = 0.5; ResampleMode = Enum.ResamplerMode.Pixelated; Size = UFO(15, 15); }) :: ImageButton
+	local Settings = Add("ImageButton", { Parent = self.RightContent; Name = "Settings"; AutoButtonColor = false; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://132030186847627"; ImageTransparency = 0.5; ResampleMode = Enum.ResamplerMode.Pixelated; Size = UFO(15, 15); }) :: ImageButton
 	Keybind.Settings = Settings
 
-	local Popup = Add("Frame", { Parent = Library._Instance; Name = "Popup"; Active = true; BackgroundColor3 = RGB(9, 8, 8); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFS(0.3753760755062103, 0.30920326709747314); Size = UFO(180, 119); Visible = false; ZIndex = PopupZ; }) :: Frame
+	local Popup = Add("Frame", { Parent = Library._Instance; Name = "Popup"; Active = true; BackgroundColor3 = Library.Theme.Background; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFS(0.3753760755062103, 0.30920326709747314); Size = UFO(180, 119); Visible = false; ZIndex = PopupZ; }) :: Frame
 	Keybind.Frame = Popup
 
 	Add("TextButton", { Parent = Popup; Name = "Catcher"; AutoButtonColor = false; BackgroundTransparency = 1; BorderSizePixel = 0; Size = UFS(1, 1); Text = ""; })
-	local Header = Add("Frame", { Parent = Popup; Name = "Header"; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 35); }) :: Frame
-	local Page = Add("Frame", { Parent = Popup; Name = "Page"; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 35); Size = UD2(1, 0, 1, -35); }) :: Frame
-	local KeyButton = Add("TextButton", { Parent = Page; Name = "KeyButton"; AutoButtonColor = false; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UD2(1, 0, 0, 25); Text = ""; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.5; }) :: TextButton
-	local Options = Add("Frame", { Parent = Page; Name = "Options"; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 35); Size = UD2(1, 0, 1, -35); }) :: Frame
-	local HoldButton = Add("TextButton", { Parent = Options; Name = "HoldButton"; AutoButtonColor = false; AutomaticSize = AS.X; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Size = UFS(0, 1); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
-	local ToggleButton = Add("TextButton", { Parent = Options; Name = "ToggleButton"; AutoButtonColor = false; AutomaticSize = AS.X; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Size = UFS(0, 1); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
-	Add("UICorner", { Parent = Popup; CornerRadius = UD(0, 5); })
-	Add("UIStroke", { Parent = Popup; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
+	local Header = Add("Frame", { Parent = Popup; Name = "Header"; BackgroundColor3 = Library.Theme.SurfaceAlt; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 35); }) :: Frame
+	local Page = Add("Frame", { Parent = Popup; Name = "Page"; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 35); Size = UD2(1, 0, 1, -35); }) :: Frame
+	local KeyButton = Add("TextButton", { Parent = Page; Name = "KeyButton"; AutoButtonColor = false; BackgroundColor3 = Library.Theme.SurfaceAlt; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UD2(1, 0, 0, 25); Text = ""; TextColor3 = Library.Theme.Text; TextSize = 13; TextTransparency = 0.5; }) :: TextButton
+	local Options = Add("Frame", { Parent = Page; Name = "Options"; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 35); Size = UD2(1, 0, 1, -35); }) :: Frame
+	local HoldButton = Add("TextButton", { Parent = Options; Name = "HoldButton"; AutoButtonColor = false; AutomaticSize = AS.X; BackgroundColor3 = Library.Theme.Text; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFS(0, 1); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
+	local ToggleButton = Add("TextButton", { Parent = Options; Name = "ToggleButton"; AutoButtonColor = false; AutomaticSize = AS.X; BackgroundColor3 = Library.Theme.SurfaceAlt; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFS(0, 1); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
+	Add("UICorner", { Parent = Popup; CornerRadius = UI_CORNER; })
+	Add("UIStroke", { Parent = Popup; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	Add("UIShadow", { Parent = Popup; BlurRadius = UD(0, 20); Spread = UFO(5, 5); Transparency = 0.65; })
-	Add("UICorner", { Parent = Header; BottomLeftRadius = UD(0, 0); BottomRightRadius = UD(0, 0); TopLeftRadius = UD(0, 5); TopRightRadius = UD(0, 5); })
-	Add("UIStroke", { Parent = Header; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
+	Add("UICorner", { Parent = Header; BottomLeftRadius = UD(0, 0); BottomRightRadius = UD(0, 0); TopLeftRadius = UI_CORNER; TopRightRadius = UI_CORNER; })
+	Add("UIStroke", { Parent = Header; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	Add("UIPadding", { Parent = Header; PaddingBottom = UD(0, 10); PaddingLeft = UD(0, 10); PaddingRight = UD(0, 10); PaddingTop = UD(0, 10); })
 	Add("UIListLayout", { Parent = Header; FillDirection = FD.Horizontal; HorizontalFlex = UFA.SpaceBetween; SortOrder = SO.LayoutOrder; VerticalAlignment = VFA.Center; })
-	Add("TextLabel", { Parent = Header; Name = "Label"; AnchorPoint = V2(0, 0.5); AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Position = UD2(0, 38, 0.5, 0); Size = UFO(0, 9); Text = Keybind.Title ~= "" and Keybind.Title or self.Text; TextColor3 = RGB(255, 255, 255); TextSize = 13; })
-	local CloseButton = Add("ImageButton", { Parent = Header; Name = "CloseButton"; AutoButtonColor = false; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://76308464050634"; Size = UFO(15, 15); }) :: ImageButton
-	Add("UIStroke", { Parent = KeyButton; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
-	Add("UICorner", { Parent = KeyButton; CornerRadius = UD(0, 5); })
+	Add("TextLabel", { Parent = Header; Name = "Label"; AnchorPoint = V2(0, 0.5); AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Position = UD2(0, 38, 0.5, 0); Size = UFO(0, 9); Text = Keybind.Title ~= "" and Keybind.Title or self.Text; TextColor3 = Library.Theme.Text; TextSize = 13; })
+	local CloseButton = Add("ImageButton", { Parent = Header; Name = "CloseButton"; AutoButtonColor = false; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://76308464050634"; Size = UFO(15, 15); }) :: ImageButton
+	Add("UIStroke", { Parent = KeyButton; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
+	Add("UICorner", { Parent = KeyButton; CornerRadius = UI_CORNER; })
 	Add("UIPadding", { Parent = Page; PaddingBottom = UD(0, 12); PaddingLeft = UD(0, 12); PaddingRight = UD(0, 12); PaddingTop = UD(0, 12); })
 	Add("UIListLayout", { Parent = Options; FillDirection = FD.Horizontal; HorizontalAlignment = HFA.Center; HorizontalFlex = UFA.Fill; Padding = UD(0, 10); SortOrder = SO.LayoutOrder; VerticalAlignment = VFA.Center; })
-	local HoldLabel = Add("TextLabel", { Parent = HoldButton; Name = "Label"; AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UFS(1, 1); Text = "Hold"; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextLabel
+	local HoldLabel = Add("TextLabel", { Parent = HoldButton; Name = "Label"; AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFS(1, 1); Text = "Hold"; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextLabel
 	Add("UIPadding", { Parent = HoldButton; PaddingLeft = UD(0, 14); PaddingRight = UD(0, 14); })
-	Add("UICorner", { Parent = HoldButton; CornerRadius = UD(0, 5); })
-	local HoldGradient = Add("UIGradient", { Parent = HoldButton; Color = CS{ CSK(0, RGB(78, 88, 129)), CSK(1, RGB(138, 156, 229)) }; Rotation = -90; }) :: UIGradient
-	local ToggleGradient = Add("UIGradient", { Parent = ToggleButton; Color = CS{ CSK(0, RGB(78, 88, 129)), CSK(1, RGB(138, 156, 229)) }; Enabled = false; Rotation = -90; }) :: UIGradient
-	local ToggleLabel = Add("TextLabel", { Parent = ToggleButton; Name = "Label"; AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UFS(1, 1); Text = "Toggle"; TextColor3 = RGB(255, 255, 255); TextSize = 14; TextTransparency = 0.5; }) :: TextLabel
+	Add("UICorner", { Parent = HoldButton; CornerRadius = UI_CORNER; })
+	local HoldGradient = Add("UIGradient", { Parent = HoldButton; Color = CS{ CSK(0, Library.Theme.AccentDark), CSK(1, Library.Theme.Accent) }; Rotation = -90; }) :: UIGradient
+	local ToggleGradient = Add("UIGradient", { Parent = ToggleButton; Color = CS{ CSK(0, Library.Theme.AccentDark), CSK(1, Library.Theme.Accent) }; Enabled = false; Rotation = -90; }) :: UIGradient
+	local ToggleLabel = Add("TextLabel", { Parent = ToggleButton; Name = "Label"; AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFS(1, 1); Text = "Toggle"; TextColor3 = Library.Theme.Text; TextSize = 14; TextTransparency = 0.5; }) :: TextLabel
 	Add("UIPadding", { Parent = ToggleButton; PaddingLeft = UD(0, 14); PaddingRight = UD(0, 14); })
-	Add("UICorner", { Parent = ToggleButton; CornerRadius = UD(0, 5); })
+	Add("UICorner", { Parent = ToggleButton; CornerRadius = UI_CORNER; })
 
 	local Listening = false
 
@@ -1777,12 +1780,11 @@ Library.SubElements.Keybind = function(self: Library, propertyTable: {})
 				Gradient.Enabled = true
 			end
 
-			local Fade = Tween(Button, { BackgroundColor3 = Active and RGB(255, 255, 255) or RGB(20, 20, 21) }, 0.15)
-			Tween(Label, { TextColor3 = Active and RGB(0, 0, 0) or RGB(255, 255, 255); TextTransparency = Active and 0 or 0.5 }, 0.15)
+			local Fade = Tween(Button, { BackgroundColor3 = Active and Library.Theme.Text or Library.Theme.SurfaceAlt }, 0.15)
+			Tween(Label, { TextColor3 = Active and RGB(0, 0, 0) or Library.Theme.Text; TextTransparency = Active and 0 or 0.5 }, 0.15)
 
 			if not Active then
 				Fade.Completed:Once(function()
-
 					if Keybind.Type == Type then
 						Gradient.Enabled = false
 					end
@@ -1852,7 +1854,6 @@ Library.SubElements.Keybind = function(self: Library, propertyTable: {})
 
 	UserInputService.InputBegan:Connect(function(Input, GameProcessed)
 		if Listening then
-
 			if Input.UserInputType == UIT.MouseButton1 and KeyButton.GuiState ~= EGS.Idle then
 				return
 			end
@@ -1929,59 +1930,59 @@ Library.SubElements.Colorpicker = function(self: Library, propertyTable: {})
 
 	local Hue, Saturation, Value = Colorpicker.Color:ToHSV()
 
-	local Button = Add("TextButton", { Parent = self.RightContent; Name = "Button"; AutoButtonColor = false; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Size = UFO(15, 15); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
-	Add("UICorner", { Parent = Button; CornerRadius = UD(0, 7); })
-	Add("UIGradient", { Parent = Button; Color = CS{ CSK(0, RGB(163, 163, 163)), CSK(1, RGB(255, 255, 255)) }; Rotation = -90; })
+	local Button = Add("TextButton", { Parent = self.RightContent; Name = "Button"; AutoButtonColor = false; BackgroundColor3 = Library.Theme.Text; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFO(15, 15); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
+	Add("UICorner", { Parent = Button; CornerRadius = UI_CORNER; })
+	Add("UIGradient", { Parent = Button; Color = CS{ CSK(0, RGB(163, 163, 163)), CSK(1, Library.Theme.Text) }; Rotation = -90; })
 
 	Colorpicker.Button = Button
 
-	local ColorpickerFrame = Add("Frame", { Parent = Library._Instance; Name = "ColorpickerFrame"; Active = true; AutomaticSize = AS.Y; BackgroundColor3 = RGB(9, 8, 8); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFS(0.3759043514728546, 0.058557264506816864); Size = UFO(199, 0); Visible = false; ZIndex = PopupZ; }) :: Frame
+	local ColorpickerFrame = Add("Frame", { Parent = Library._Instance; Name = "ColorpickerFrame"; Active = true; AutomaticSize = AS.Y; BackgroundColor3 = Library.Theme.Background; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFS(0.3759043514728546, 0.058557264506816864); Size = UFO(199, 0); Visible = false; ZIndex = PopupZ; }) :: Frame
 	Colorpicker.Frame = ColorpickerFrame
 
 	Add("TextButton", { Parent = ColorpickerFrame; Name = "Catcher"; AutoButtonColor = false; BackgroundTransparency = 1; BorderSizePixel = 0; Size = UFS(1, 1); Text = ""; })
-	local Header = Add("Frame", { Parent = ColorpickerFrame; Name = "Header"; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 35); }) :: Frame
+	local Header = Add("Frame", { Parent = ColorpickerFrame; Name = "Header"; BackgroundColor3 = Library.Theme.SurfaceAlt; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 35); }) :: Frame
 
-	local Page = Add("Frame", { Parent = ColorpickerFrame; Name = "Page"; AutomaticSize = AS.Y; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 35); Size = UD2(1, 0, 0, 0); }) :: Frame
-	local SaturationBox = Add("Frame", { Parent = Page; Name = "SaturationBox"; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 175); }) :: Frame
-	local ValueOverlay = Add("Frame", { Parent = SaturationBox; Name = "ValueOverlay"; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(1, 1); }) :: Frame
-	local SaturationCursor = Add("TextButton", { Parent = SaturationBox; Name = "SaturationCursor"; AnchorPoint = V2(0.5, 0.5); AutoButtonColor = false; BackgroundColor3 = RGB(255, 0, 0); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Position = UFS(1, 0); Size = UFO(10, 10); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
-	local HueSlider = Add("Frame", { Parent = Page; Name = "HueSlider"; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 12); }) :: Frame
-	local HueCursor = Add("Frame", { Parent = HueSlider; Name = "HueCursor"; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, -2); Size = UD2(0, 10, 1, 4); }) :: Frame
-	local AlphaSlider = Add("Frame", { Parent = Page; Name = "AlphaSlider"; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 12); }) :: Frame
-	local AlphaCursor = Add("Frame", { Parent = AlphaSlider; Name = "AlphaCursor"; AnchorPoint = V2(1, 0); BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UD2(1, 0, 0, -2); Size = UD2(0, 10, 1, 4); }) :: Frame
-	Add("UICorner", { Parent = ColorpickerFrame; CornerRadius = UD(0, 5); })
-	Add("UIStroke", { Parent = ColorpickerFrame; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
+	local Page = Add("Frame", { Parent = ColorpickerFrame; Name = "Page"; AutomaticSize = AS.Y; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 35); Size = UD2(1, 0, 0, 0); }) :: Frame
+	local SaturationBox = Add("Frame", { Parent = Page; Name = "SaturationBox"; BackgroundColor3 = Library.Theme.Text; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 175); }) :: Frame
+	local ValueOverlay = Add("Frame", { Parent = SaturationBox; Name = "ValueOverlay"; BackgroundColor3 = Library.Theme.Text; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(1, 1); }) :: Frame
+	local SaturationCursor = Add("TextButton", { Parent = SaturationBox; Name = "SaturationCursor"; AnchorPoint = V2(0.5, 0.5); AutoButtonColor = false; BackgroundColor3 = RGB(255, 0, 0); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Position = UFS(1, 0); Size = UFO(10, 10); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
+	local HueSlider = Add("Frame", { Parent = Page; Name = "HueSlider"; BackgroundColor3 = Library.Theme.Text; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 12); }) :: Frame
+	local HueCursor = Add("Frame", { Parent = HueSlider; Name = "HueCursor"; BackgroundColor3 = Library.Theme.Text; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, -2); Size = UD2(0, 10, 1, 4); }) :: Frame
+	local AlphaSlider = Add("Frame", { Parent = Page; Name = "AlphaSlider"; BackgroundColor3 = Library.Theme.Text; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(1, 0, 0, 12); }) :: Frame
+	local AlphaCursor = Add("Frame", { Parent = AlphaSlider; Name = "AlphaCursor"; AnchorPoint = V2(1, 0); BackgroundColor3 = Library.Theme.Text; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UD2(1, 0, 0, -2); Size = UD2(0, 10, 1, 4); }) :: Frame
+	Add("UICorner", { Parent = ColorpickerFrame; CornerRadius = UI_CORNER; })
+	Add("UIStroke", { Parent = ColorpickerFrame; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	Add("UIShadow", { Parent = ColorpickerFrame; BlurRadius = UD(0, 20); Spread = UFO(5, 5); Transparency = 0.65; })
-	Add("UICorner", { Parent = Header; BottomLeftRadius = UD(0, 0); BottomRightRadius = UD(0, 0); TopLeftRadius = UD(0, 5); TopRightRadius = UD(0, 5); })
-	Add("UIStroke", { Parent = Header; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
+	Add("UICorner", { Parent = Header; BottomLeftRadius = UD(0, 0); BottomRightRadius = UD(0, 0); TopLeftRadius = UI_CORNER; TopRightRadius = UI_CORNER; })
+	Add("UIStroke", { Parent = Header; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	Add("UIPadding", { Parent = Header; PaddingBottom = UD(0, 10); PaddingLeft = UD(0, 10); PaddingRight = UD(0, 10); PaddingTop = UD(0, 10); })
 	Add("UIListLayout", { Parent = Header; FillDirection = FD.Horizontal; HorizontalFlex = UFA.SpaceBetween; SortOrder = SO.LayoutOrder; VerticalAlignment = VFA.Center; })
-	Add("TextLabel", { Parent = Header; Name = "Label"; AnchorPoint = V2(0, 0.5); AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Position = UD2(0, 38, 0.5, 0); Size = UFO(0, 9); Text = Colorpicker.Title ~= "" and Colorpicker.Title or self.Text; TextColor3 = RGB(255, 255, 255); TextSize = 13; })
-	local CloseButton = Add("ImageButton", { Parent = Header; Name = "CloseButton"; AutoButtonColor = false; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://76308464050634"; Size = UFO(15, 15); }) :: ImageButton
+	Add("TextLabel", { Parent = Header; Name = "Label"; AnchorPoint = V2(0, 0.5); AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Position = UD2(0, 38, 0.5, 0); Size = UFO(0, 9); Text = Colorpicker.Title ~= "" and Colorpicker.Title or self.Text; TextColor3 = Library.Theme.Text; TextSize = 13; })
+	local CloseButton = Add("ImageButton", { Parent = Header; Name = "CloseButton"; AutoButtonColor = false; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://76308464050634"; Size = UFO(15, 15); }) :: ImageButton
 	Add("UIPadding", { Parent = Page; PaddingBottom = UD(0, 12); PaddingLeft = UD(0, 12); PaddingRight = UD(0, 12); PaddingTop = UD(0, 12); })
-	Add("UICorner", { Parent = SaturationBox; CornerRadius = UD(0, 5); })
+	Add("UICorner", { Parent = SaturationBox; CornerRadius = UI_CORNER; })
 	Add("UIGradient", { Parent = ValueOverlay; Color = CS{ CSK(0, RGB(0, 0, 0)), CSK(1, RGB(0, 0, 0)) }; Rotation = -90; Transparency = NS{ NSK(0, 0), NSK(1, 1) }; })
-	Add("UICorner", { Parent = ValueOverlay; CornerRadius = UD(0, 4); })
-	local SaturationGradient = Add("UIGradient", { Parent = SaturationBox; Color = CS{ CSK(0, RGB(255, 255, 255)), CSK(1, RGB(255, 0, 0)) }; }) :: UIGradient
-	Add("UIStroke", { Parent = SaturationBox; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
-	Add("UICorner", { Parent = SaturationCursor; CornerRadius = UD(1, 0); })
+	Add("UICorner", { Parent = ValueOverlay; CornerRadius = UI_CORNER; })
+	local SaturationGradient = Add("UIGradient", { Parent = SaturationBox; Color = CS{ CSK(0, Library.Theme.Text), CSK(1, RGB(255, 0, 0)) }; }) :: UIGradient
+	Add("UIStroke", { Parent = SaturationBox; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
+	Add("UICorner", { Parent = SaturationCursor; CornerRadius = UI_CORNER; })
 	Add("UIShadow", { Parent = SaturationCursor; BlurRadius = UD(0, 5); Spread = UFO(5, 5); Transparency = 0.48; })
-	Add("UIStroke", { Parent = SaturationCursor; ApplyStrokeMode = ASM.Border; Color = RGB(255, 255, 255); })
+	Add("UIStroke", { Parent = SaturationCursor; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Text; })
 	Add("UIListLayout", { Parent = Page; Padding = UD(0, 10); SortOrder = SO.LayoutOrder; })
-	Add("UICorner", { Parent = HueSlider; CornerRadius = UD(0, 5); })
-	Add("UICorner", { Parent = HueCursor; CornerRadius = UD(0, 3); })
+	Add("UICorner", { Parent = HueSlider; CornerRadius = UI_CORNER; })
+	Add("UICorner", { Parent = HueCursor; CornerRadius = UI_CORNER; })
 	Add("UIShadow", { Parent = HueCursor; BlurRadius = UD(0, 5); Spread = UFO(5, 5); Transparency = 0.48; })
 	Add("UIGradient", { Parent = HueSlider; Color = CS{ CSK(0, RGB(255, 0, 1)), CSK(0.167, RGB(255, 0, 255)), CSK(0.333, RGB(0, 0, 255)), CSK(0.5, RGB(0, 255, 225)), CSK(0.667, RGB(0, 255, 0)), CSK(0.833, RGB(255, 255, 0)), CSK(1, RGB(255, 0, 0)) }; Transparency = NS{ NSK(0, 0), NSK(0.481, 0.29374998807907104), NSK(1, 0) }; })
-	Add("UICorner", { Parent = AlphaSlider; CornerRadius = UD(0, 5); })
-	Add("UICorner", { Parent = AlphaCursor; CornerRadius = UD(0, 3); })
+	Add("UICorner", { Parent = AlphaSlider; CornerRadius = UI_CORNER; })
+	Add("UICorner", { Parent = AlphaCursor; CornerRadius = UI_CORNER; })
 	Add("UIShadow", { Parent = AlphaCursor; BlurRadius = UD(0, 5); Spread = UFO(5, 5); Transparency = 0.48; })
-	local AlphaGradient = Add("UIGradient", { Parent = AlphaSlider; Color = CS{ CSK(0, RGB(255, 255, 255)), CSK(1, RGB(255, 0, 0)) }; }) :: UIGradient
+	local AlphaGradient = Add("UIGradient", { Parent = AlphaSlider; Color = CS{ CSK(0, Library.Theme.Text), CSK(1, RGB(255, 0, 0)) }; }) :: UIGradient
 
 	local function Update()
 		Colorpicker.Color = HSV(Hue, Saturation, Value)
 
-		SaturationGradient.Color = CS{ CSK(0, RGB(255, 255, 255)), CSK(1, HSV(Hue, 1, 1)) }
-		AlphaGradient.Color = CS{ CSK(0, RGB(255, 255, 255)), CSK(1, Colorpicker.Color) }
+		SaturationGradient.Color = CS{ CSK(0, Library.Theme.Text), CSK(1, HSV(Hue, 1, 1)) }
+		AlphaGradient.Color = CS{ CSK(0, Library.Theme.Text), CSK(1, Colorpicker.Color) }
 
 		Tween(SaturationCursor, { Position = UFS(Saturation, 1 - Value), BackgroundColor3 = Colorpicker.Color }, 0.08)
 		Tween(HueCursor, { AnchorPoint = V2(1 - Hue, 0), Position = UD2(1 - Hue, 0, 0, -2) }, 0.08)
@@ -2072,20 +2073,155 @@ end
 
 Library._Instance = Add("ScreenGui", { Parent = RunService:IsStudio() and Client.PlayerGui or Services:GetService("CoreGui"); Name = "Window"; ZIndexBehavior = ZIB.Sibling; }) :: ScreenGui
 
+Library.Theme = {
+	Accent = RGB(138, 156, 229),
+	AccentDark = RGB(78, 88, 129),
+	Background = RGB(9, 8, 8),
+	Surface = RGB(15, 14, 15),
+	SurfaceAlt = RGB(20, 20, 21),
+	Border = RGB(36, 37, 37),
+	SectionBorder = RGB(32, 33, 36),
+	Text = RGB(255, 255, 255),
+	TextDim = RGB(180, 184, 200),
+}
+
+Library.DefaultTheme = {
+	Accent = RGB(138, 156, 229),
+	AccentDark = RGB(78, 88, 129),
+	Background = RGB(9, 8, 8),
+	Surface = RGB(15, 14, 15),
+	SurfaceAlt = RGB(20, 20, 21),
+	Border = RGB(36, 37, 37),
+	SectionBorder = RGB(32, 33, 36),
+	Text = RGB(255, 255, 255),
+	TextDim = RGB(180, 184, 200),
+}
+
+Library.ThemeLinks = {}
+
+Library.ThemeLink = function(Object: Instance, Property: string, Key: string, Key2: string?)
+	if not Object then
+		return
+	end
+	TIS(Library.ThemeLinks, { Object = Object; Property = Property; Key = Key; Key2 = Key2 })
+end
+
+Library.MobileToggle = {
+	Frame = nil :: Frame?;
+	Button = nil :: TextButton?;
+}
+
+Library.SetMobileToggle = function(Visible: boolean?)
+	local Show = IsMobileDevice() and (if Visible == nil then true else Visible)
+	local T = Library.Theme
+
+	if not Library.MobileToggle.Frame then
+		local Gui = Library._Instance
+		local ToggleHolder = Add("Frame", {
+			Parent = Gui;
+			Name = "MobileToggle";
+			Position = UFO(14, 14);
+			Size = UFO(42, 42);
+			BackgroundColor3 = T.Surface;
+			BorderSizePixel = 0;
+			ZIndex = 150;
+			Active = true;
+		})
+		Add("UICorner", { Parent = ToggleHolder; CornerRadius = UI_CORNER; })
+		local HolderStroke = Add("UIStroke", {
+			Parent = ToggleHolder;
+			ApplyStrokeMode = ASM.Border;
+			Color = T.Border;
+			Thickness = 1;
+		})
+		Library.ThemeLink(ToggleHolder, "BackgroundColor3", "Surface")
+		Library.ThemeLink(HolderStroke, "Color", "Border")
+
+		local ToggleBtn = Add("TextButton", {
+			Parent = ToggleHolder;
+			Name = "ToggleButton";
+			Size = UFS(1, 1);
+			BackgroundTransparency = 1;
+			Text = "UI";
+			TextColor3 = T.Text;
+			TextSize = 13;
+			FontFace = UI_FONT;
+			AutoButtonColor = false;
+			ZIndex = 151;
+		})
+		Library.ThemeLink(ToggleBtn, "TextColor3", "Text")
+
+		local Dot = Add("Frame", {
+			Parent = ToggleHolder;
+			AnchorPoint = V2(1, 0);
+			Position = UD2(1, -5, 0, 5);
+			Size = UFO(6, 6);
+			BackgroundColor3 = T.Accent;
+			BorderSizePixel = 0;
+			ZIndex = 152;
+		})
+		Add("UICorner", { Parent = Dot; CornerRadius = UI_CORNER; })
+		Library.ThemeLink(Dot, "BackgroundColor3", "Accent")
+
+		BindDrag(ToggleHolder, ToggleBtn, true)
+
+		local Dragged = false
+		ToggleBtn.InputChanged:Connect(function(Input)
+			if Input.UserInputType == UIT.Touch or Input.UserInputType == UIT.MouseMovement then
+				if Input.Delta.Magnitude > 2 then
+					Dragged = true
+				end
+			end
+		end)
+		ToggleBtn.InputEnded:Connect(function(Input)
+			if Input.UserInputType == UIT.Touch or Input.UserInputType == UIT.MouseButton1 then
+				if not Dragged then
+					Library.ToggleMenu()
+				end
+				Dragged = false
+			end
+		end)
+
+		Library.MobileToggle.Frame = ToggleHolder
+		Library.MobileToggle.Button = ToggleBtn
+		Library.MobileToggle.Dot = Dot
+	end
+
+	if Library.MobileToggle.Frame then
+		Library.MobileToggle.Frame.Visible = Show
+	end
+end
+
 Library.Window = function(self: Library, propertyTable: {})
 	local Window = Overwrite({
-		Title = "",
-		Footer = "",
-		Logo = nil,
-		Icon = nil,
+		Title = "";
+		Footer = "";
+		Logo = nil;
+		Icon = nil;
 	}, propertyTable or {})
 
-	local Canvas = Add("Frame", { Parent = self._Instance; Name = "Canvas"; BackgroundColor3 = Library.Theme.Background; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFO(658, 461); }) :: Frame
-	Library.ThemeLink(Canvas, "BackgroundColor3", "Background")
+	local Mainframe = Add("Frame", {
+		Parent = self._Instance;
+		Name = "Mainframe";
+		BackgroundColor3 = Library.Theme.Background;
+		BorderColor3 = RGB(0, 0, 0);
+		BorderSizePixel = 0;
+		Size = UFO(658, 461);
+	}) :: Frame
+	Library.ThemeLink(Mainframe, "BackgroundColor3", "Background")
+	local MainStroke = Add("UIStroke", {
+		Parent = Mainframe;
+		ApplyStrokeMode = ASM.Border;
+		Color = Library.Theme.Border;
+	})
+	Library.ThemeLink(MainStroke, "Color", "Border")
+	Add("UICorner", { Parent = Mainframe; CornerRadius = UI_CORNER; })
+	Add("UIShadow", { Parent = Mainframe; BlurRadius = UD(0, 20); Spread = UFO(5, 5); Transparency = 0.65; })
+
+	local Canvas = Mainframe
 	local Sidebar = Add("Frame", { Parent = Canvas; Name = "Sidebar"; BackgroundColor3 = Library.Theme.Surface; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UD2(0, 75, 1, 0); }) :: Frame
 	Library.ThemeLink(Sidebar, "BackgroundColor3", "Surface")
 
-	-- Author logo (only if Logo / Icon provided — no default hashtag)
 	local LogoSrc = Window.Logo or Window.Icon
 	local LogoH = (LogoSrc and LogoSrc ~= "") and 58 or 8
 	local LogoWrap = Add("Frame", {
@@ -2107,7 +2243,7 @@ Library.Window = function(self: Library, propertyTable: {})
 		Size = UFO(32, 32);
 		BackgroundTransparency = 1;
 		Image = ResolveIcon(LogoSrc);
-		ImageColor3 = RGB(255, 255, 255);
+		ImageColor3 = Library.Theme.Text;
 		ImageTransparency = 0;
 		ScaleType = SCL.Fit;
 		ZIndex = 3;
@@ -2164,7 +2300,6 @@ Library.Window = function(self: Library, propertyTable: {})
 	})
 
 	Window.TabEditMode = false
-	-- Very small lock/reorder toggle
 	local EditRow = Add("Frame", {
 		Parent = Sidebar;
 		Name = "TabEdit";
@@ -2180,7 +2315,7 @@ Library.Window = function(self: Library, propertyTable: {})
 		BackgroundColor3 = Library.Theme.SurfaceAlt;
 		BorderSizePixel = 0;
 	})
-	Add("UICorner", { Parent = EditTrack; CornerRadius = UD(1, 0); })
+	Add("UICorner", { Parent = EditTrack; CornerRadius = UI_CORNER; })
 	Library.ThemeLink(EditTrack, "BackgroundColor3", "SurfaceAlt")
 	local EditKnob = Add("Frame", {
 		Parent = EditTrack;
@@ -2191,7 +2326,7 @@ Library.Window = function(self: Library, propertyTable: {})
 		BorderSizePixel = 0;
 		ZIndex = 6;
 	})
-	Add("UICorner", { Parent = EditKnob; CornerRadius = UD(1, 0); })
+	Add("UICorner", { Parent = EditKnob; CornerRadius = UI_CORNER; })
 	local EditHit = Add("TextButton", {
 		Parent = EditRow;
 		Size = UFS(1, 1);
@@ -2235,34 +2370,32 @@ Library.Window = function(self: Library, propertyTable: {})
 
 	local Header = Add("Frame", { Parent = Canvas; Name = "Header"; BackgroundColor3 = Library.Theme.SurfaceAlt; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(75, 0); Size = UD2(1, -75, 0, 50); }) :: Frame
 	Library.ThemeLink(Header, "BackgroundColor3", "SurfaceAlt")
-	local SubPages = Add("Frame", { Parent = Header; Name = "SubPages"; AutomaticSize = AS.X; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(0, 1); }) :: Frame
+	local SubPages = Add("Frame", { Parent = Header; Name = "SubPages"; AutomaticSize = AS.X; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Size = UFS(0, 1); }) :: Frame
 	local Search = Add("Frame", { Parent = Header; Name = "Search"; LayoutOrder = 1; Active = true; AnchorPoint = V2(1, 0); AutomaticSize = AS.X; BackgroundColor3 = Library.Theme.Background; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFS(1, 0); Selectable = true; Size = UD2(0, 200, 1, 0); }) :: Frame
-	local Pages = Add("Frame", { Parent = Canvas; Name = "Pages"; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(75, 50); Size = UD2(1, -75, 1, -75); }) :: Frame
+	local Pages = Add("Frame", { Parent = Canvas; Name = "Pages"; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(75, 50); Size = UD2(1, -75, 1, -75); }) :: Frame
 	local Footer = Add("Frame", { Parent = Canvas; Name = "Footer"; AnchorPoint = V2(0, 1); BackgroundColor3 = Library.Theme.Surface; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UD2(0, 75, 1, 0); Size = UD2(1, -75, 0, 25); }) :: Frame
 	Library.ThemeLink(Footer, "BackgroundColor3", "Surface")
-	local SearchBox = Add("TextBox", { Parent = Search; Name = "TextLabel"; Active = false; AutomaticSize = AS.X; ClearTextOnFocus = false; LayoutOrder = 1; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); PlaceholderColor3 = RGB(255, 255, 255); PlaceholderText = "Search function"; Selectable = false; Size = UFS(0, 1); Text = ""; TextColor3 = RGB(255, 255, 255); TextSize = 14; TextTransparency = 0.5; }) :: TextBox
-	Add("UIStroke", { Parent = Canvas; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
-	Add("UICorner", { Parent = Canvas; CornerRadius = UD(0, 5); })
-	Add("UICorner", { Parent = Sidebar; BottomLeftRadius = UD(0, 5); BottomRightRadius = UD(0, 0); TopLeftRadius = UD(0, 5); TopRightRadius = UD(0, 0); })
-	Add("UIStroke", { Parent = Sidebar; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
-		Add("UICorner", { Parent = Header; BottomLeftRadius = UD(0, 0); BottomRightRadius = UD(0, 0); TopLeftRadius = UD(0, 0); TopRightRadius = UD(0, 5); })
-	Add("UIStroke", { Parent = Header; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
+	local SearchBox = Add("TextBox", { Parent = Search; Name = "TextLabel"; Active = false; AutomaticSize = AS.X; ClearTextOnFocus = false; LayoutOrder = 1; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; PlaceholderColor3 = Library.Theme.Text; PlaceholderText = "Search function"; Selectable = false; Size = UFS(0, 1); Text = ""; TextColor3 = Library.Theme.Text; TextSize = 14; TextTransparency = 0.5; }) :: TextBox
+	Add("UICorner", { Parent = Sidebar; BottomLeftRadius = UI_CORNER; BottomRightRadius = UD(0, 0); TopLeftRadius = UI_CORNER; TopRightRadius = UD(0, 0); })
+	Add("UIStroke", { Parent = Sidebar; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
+	Add("UICorner", { Parent = Header; BottomLeftRadius = UD(0, 0); BottomRightRadius = UD(0, 0); TopLeftRadius = UD(0, 0); TopRightRadius = UI_CORNER; })
+	Add("UIStroke", { Parent = Header; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	Add("UIListLayout", { Parent = SubPages; FillDirection = FD.Horizontal; Padding = UD(0, 10); SortOrder = SO.LayoutOrder; VerticalAlignment = VFA.Center; })
 	Add("UIPadding", { Parent = Header; PaddingBottom = UD(0, 10); PaddingLeft = UD(0, 10); PaddingRight = UD(0, 10); PaddingTop = UD(0, 10); })
 	Add("UIPadding", { Parent = Search; PaddingLeft = UD(0, 8); PaddingRight = UD(0, 8); })
-	Add("UICorner", { Parent = Search; CornerRadius = UD(0, 5); })
+	Add("UICorner", { Parent = Search; CornerRadius = UI_CORNER; })
 	Add("UIListLayout", { Parent = Search; FillDirection = FD.Horizontal; Padding = UD(0, 5); SortOrder = SO.LayoutOrder; VerticalAlignment = VFA.Center; })
-	Add("ImageLabel", { Parent = Search; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; LayoutOrder = 0; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://82536262318754"; ImageTransparency = 0.5; ResampleMode = Enum.ResamplerMode.Pixelated; Size = UFO(15, 15); })
+	Add("ImageLabel", { Parent = Search; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; LayoutOrder = 0; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Image = "rbxassetid://82536262318754"; ImageTransparency = 0.5; ResampleMode = Enum.ResamplerMode.Pixelated; Size = UFO(15, 15); })
 	Add("UIListLayout", { Parent = Header; FillDirection = FD.Horizontal; HorizontalFlex = UFA.SpaceBetween; SortOrder = SO.LayoutOrder; VerticalAlignment = VFA.Center; })
 	Add("UIPadding", { Parent = Pages; PaddingBottom = UD(0, 12); PaddingLeft = UD(0, 12); PaddingRight = UD(0, 12); PaddingTop = UD(0, 12); })
-	Add("UIShadow", { Parent = Canvas; BlurRadius = UD(0, 20); Spread = UFO(5, 5); Transparency = 0.65; })
-	Add("UICorner", { Parent = Footer; BottomLeftRadius = UD(0, 0); BottomRightRadius = UD(0, 5); TopLeftRadius = UD(0, 0); TopRightRadius = UD(0, 0); })
-	Add("UIStroke", { Parent = Footer; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
+	Add("UICorner", { Parent = Footer; BottomLeftRadius = UD(0, 0); BottomRightRadius = UI_CORNER; TopLeftRadius = UD(0, 0); TopRightRadius = UD(0, 0); })
+	Add("UIStroke", { Parent = Footer; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	Add("UIPadding", { Parent = Footer; PaddingBottom = UD(0, 10); PaddingLeft = UD(0, 10); PaddingRight = UD(0, 10); PaddingTop = UD(0, 10); })
-	Add("TextLabel", { Parent = Footer; AnchorPoint = V2(0, 0.5); AutomaticSize = AS.X; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Position = UFS(0, 0.5); Size = UFO(0, 13); Text = Window.Title; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.5; })
-	Add("TextLabel", { Parent = Footer; AnchorPoint = V2(1, 0.5); AutomaticSize = AS.X; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Position = UFS(1, 0.5); Size = UFO(0, 13); Text = Window.Footer; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.5; })
+	Add("TextLabel", { Parent = Footer; AnchorPoint = V2(0, 0.5); AutomaticSize = AS.X; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Position = UFS(0, 0.5); Size = UFO(0, 13); Text = Window.Title; TextColor3 = Library.Theme.Text; TextSize = 13; TextTransparency = 0.5; })
+	Add("TextLabel", { Parent = Footer; AnchorPoint = V2(1, 0.5); AutomaticSize = AS.X; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Position = UFS(1, 0.5); Size = UFO(0, 13); Text = Window.Footer; TextColor3 = Library.Theme.Text; TextSize = 13; TextTransparency = 0.5; })
 	BindDrag(Canvas, Header, true, Search)
 
+	Window.Mainframe = Mainframe
 	Window.Canvas = Canvas
 	TIS(Library.Windows, Window)
 	Add("UIScale", { Parent = Canvas; Scale = Library.UIScale })
@@ -2285,6 +2418,7 @@ Library.Window = function(self: Library, propertyTable: {})
 	task.defer(CenterCanvas)
 	task.delay(0.05, CenterCanvas)
 
+	Library.SetMobileToggle()
 	Library.SetWatermark(Library.Watermark.Text, Library.Watermark.Enabled)
 	Library.SetKeybindList(Library.KeybindList.Enabled)
 	if Library._MountKeySystem then
@@ -2299,6 +2433,7 @@ Library.Window = function(self: Library, propertyTable: {})
 				if Canvas and Canvas.Parent then
 					Canvas.Position = ClampToScreen(Canvas, Canvas.Position)
 				end
+				Library.SetMobileToggle()
 			end)
 		end
 	end
@@ -2367,7 +2502,6 @@ Library.Window = function(self: Library, propertyTable: {})
 			LayoutOrder = #Window.Pages;
 		}) :: TextButton
 
-		-- Soft radial selection bloom (centered behind icon)
 		local GlowImage = Add("ImageLabel", {
 			Parent = PageButton;
 			Name = "GlowImage";
@@ -2403,7 +2537,7 @@ Library.Window = function(self: Library, propertyTable: {})
 			BorderSizePixel = 0;
 			Image = ResolveIcon(Page.Icon);
 			ImageTransparency = 0.45;
-			ImageColor3 = RGB(255, 255, 255);
+			ImageColor3 = Library.Theme.Text;
 			ScaleType = SCL.Fit;
 			Size = UFS(1, 1);
 			ZIndex = 3;
@@ -2440,7 +2574,7 @@ Library.Window = function(self: Library, propertyTable: {})
 			Page.Opened = false
 			Tween(GlowImage, { ImageTransparency = 1 }, 0.16)
 			Tween(GlowInner, { ImageTransparency = 1 }, 0.16)
-			Tween(PageIcon, { ImageTransparency = 0.45, ImageColor3 = RGB(255, 255, 255) }, 0.16)
+			Tween(PageIcon, { ImageTransparency = 0.45, ImageColor3 = Library.Theme.Text }, 0.16)
 
 			for _, SubPage in Page.SubPages do
 				SubPage.Button.Visible = false
@@ -2451,7 +2585,6 @@ Library.Window = function(self: Library, propertyTable: {})
 			end
 		end)
 
-		-- Drag-reorder: ghost snaps in-list only
 		do
 			local Dragging = false
 			local Ghost = nil
@@ -2501,7 +2634,6 @@ Library.Window = function(self: Library, propertyTable: {})
 				ClearGhost()
 				PageButton.Visible = false
 
-				-- Outline-only slot (no solid blue fill)
 				Placeholder = Add("Frame", {
 					Parent = PageButtons;
 					Name = "TabPlaceholder";
@@ -2510,13 +2642,13 @@ Library.Window = function(self: Library, propertyTable: {})
 					BorderSizePixel = 0;
 					LayoutOrder = OriginOrder;
 				})
-				local PhStroke = Add("UIStroke", {
+				Add("UIStroke", {
 					Parent = Placeholder;
 					Color = Library.Theme.Accent;
 					Transparency = 0.35;
 					Thickness = 1.5;
 				})
-				Add("UICorner", { Parent = Placeholder; CornerRadius = UD(0, 8); })
+				Add("UICorner", { Parent = Placeholder; CornerRadius = UI_CORNER; })
 
 				Ghost = Add("Frame", {
 					Parent = Library._Instance;
@@ -2606,25 +2738,24 @@ Library.Window = function(self: Library, propertyTable: {})
 
 		Page.SubPage = function(self: Library, propertyTable: {})
 			local SubPage = Overwrite({
-				Name = "",
+				Name = "";
 			}, propertyTable or {})
 
-			local SubPageButton = Add("TextButton", { Parent = SubPages; Name = "SubPageButton"; AutoButtonColor = false; AutomaticSize = AS.X; BackgroundColor3 = Library.Theme.Background; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Size = UFS(0, 1); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; Visible = Page.Opened; }) :: TextButton
+			local SubPageButton = Add("TextButton", { Parent = SubPages; Name = "SubPageButton"; AutoButtonColor = false; AutomaticSize = AS.X; BackgroundColor3 = Library.Theme.Background; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFS(0, 1); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; Visible = Page.Opened; }) :: TextButton
 			local SubGrad = Add("UIGradient", { Parent = SubPageButton; Color = CS{ CSK(0, Library.Theme.AccentDark), CSK(1, Library.Theme.Accent) }; Rotation = -70; })
 			Library.ThemeLink(SubGrad, "Gradient", "AccentDark", "Accent")
-			local SubPageLabel = Add("TextLabel", { Parent = SubPageButton; Name = "Label"; AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UFS(1, 1); Text = SubPage.Name; TextColor3 = RGB(255, 255, 255); TextSize = 14; TextTransparency = 0.5; }) :: TextLabel
+			local SubPageLabel = Add("TextLabel", { Parent = SubPageButton; Name = "Label"; AutomaticSize = AS.XY; BackgroundColor3 = Library.Theme.Text; BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = UI_FONT; Size = UFS(1, 1); Text = SubPage.Name; TextColor3 = Library.Theme.Text; TextSize = 14; TextTransparency = 0.5; }) :: TextLabel
 			Add("UIPadding", { Parent = SubPageButton; PaddingLeft = UD(0, 14); PaddingRight = UD(0, 14); })
-			Add("UICorner", { Parent = SubPageButton; CornerRadius = UD(0, 5); })
+			Add("UICorner", { Parent = SubPageButton; CornerRadius = UI_CORNER; })
 
 			SubPage.Button = SubPageButton
 
 			SubPage.ParentPage = Page
 			PageContent(SubPage, Pages, Page.SubPages, function()
-
 				Page.ActiveSubPage = SubPage
 				Page.Frame.Visible = false
 
-				Tween(SubPageButton, { BackgroundColor3 = RGB(255, 255, 255) }, 0.15)
+				Tween(SubPageButton, { BackgroundColor3 = Library.Theme.Text }, 0.15)
 				Tween(SubPageLabel, { TextTransparency = 0 }, 0.15)
 			end, function()
 				Tween(SubPageButton, { BackgroundColor3 = Library.Theme.Background }, 0.15)
@@ -2660,46 +2791,12 @@ Library.Window = function(self: Library, propertyTable: {})
 	return Window
 end
 
-Library.Theme = {
-	Accent = RGB(138, 156, 229),
-	AccentDark = RGB(78, 88, 129),
-	Background = RGB(9, 8, 8),
-	Surface = RGB(15, 14, 15),
-	SurfaceAlt = RGB(20, 20, 21),
-	Border = RGB(36, 37, 37),
-	SectionBorder = RGB(32, 33, 36),
-	Text = RGB(255, 255, 255),
-	TextDim = RGB(180, 184, 200),
-}
-
-Library.DefaultTheme = {
-	Accent = RGB(138, 156, 229),
-	AccentDark = RGB(78, 88, 129),
-	Background = RGB(9, 8, 8),
-	Surface = RGB(15, 14, 15),
-	SurfaceAlt = RGB(20, 20, 21),
-	Border = RGB(36, 37, 37),
-	SectionBorder = RGB(32, 33, 36),
-	Text = RGB(255, 255, 255),
-	TextDim = RGB(180, 184, 200),
-}
-
-Library.ThemeLinks = {}
-
-Library.ThemeLink = function(Object: Instance, Property: string, Key: string, Key2: string?)
-	if not Object then
-		return
-	end
-	TIS(Library.ThemeLinks, { Object = Object; Property = Property; Key = Key; Key2 = Key2 })
-end
-
 Library.ApplyTheme = function()
 	local T = Library.Theme
 	if not T then
 		return
 	end
 
-	-- Always derive AccentDark from Accent when accent changes
 	if T.Accent then
 		local H, S, V = T.Accent:ToHSV()
 		T.AccentDark = HSV(H, math.clamp(S * 0.95, 0, 1), math.max(V * 0.55, 0.12))
@@ -2711,7 +2808,6 @@ Library.ApplyTheme = function()
 		end
 	end
 
-	-- ThemeLink registry
 	local Alive = {}
 	for _, Link in Library.ThemeLinks do
 		if Link.Object and Link.Object.Parent then
@@ -2728,7 +2824,7 @@ Library.ApplyTheme = function()
 	Library.ThemeLinks = Alive
 
 	for _, Win in Library.Windows do
-		local Canvas = Win.Canvas
+		local Canvas = Win.Mainframe or Win.Canvas
 		if not Canvas then
 			continue
 		end
@@ -2777,7 +2873,7 @@ Library.ApplyTheme = function()
 		for _, Page in (Win.Pages or {}) do
 			if Page.Gradient then PaintGrad(Page.Gradient) end
 			if Page.Indicator then
-				pcall(function() Page.Indicator.BackgroundColor3 = RGB(255, 255, 255) end)
+				pcall(function() Page.Indicator.BackgroundColor3 = T.Text end)
 			end
 			if Page.IndicatorGlow then
 				pcall(function()
@@ -2794,10 +2890,10 @@ Library.ApplyTheme = function()
 			if Page.IconLabel then
 				if Page.Opened then
 					Page.IconLabel.ImageTransparency = 0
-					Page.IconLabel.ImageColor3 = RGB(255, 255, 255)
+					Page.IconLabel.ImageColor3 = T.Text
 				else
 					Page.IconLabel.ImageTransparency = 0.5
-					Page.IconLabel.ImageColor3 = RGB(255, 255, 255)
+					Page.IconLabel.ImageColor3 = T.Text
 				end
 			end
 			for _, Sub in (Page.SubPages or {}) do
@@ -2813,7 +2909,6 @@ Library.ApplyTheme = function()
 		end
 	end
 
-	-- Sections / elements walk
 	for _, Section in (Library.Sections or {}) do
 		local Frame = Section.Frame
 		if Frame and Frame.Parent then
@@ -2907,7 +3002,6 @@ local function DecodeColor(Value: any): Color3?
 	return nil
 end
 
-
 Library.GetLayout = function()
 	local Layout = {
 		Tabs = {};
@@ -2917,15 +3011,11 @@ Library.GetLayout = function()
 	}
 	for _, Win in Library.Windows do
 		for _, Page in (Win.Pages or {}) do
-			local Id = tostring(Page.Icon or "") .. ":" .. tostring(Page.Button and Page.Button.LayoutOrder or 0)
 			if Page.Button then
 				TIS(Layout.Tabs, {
 					Icon = Page.Icon;
 					Order = Page.Button.LayoutOrder;
 				})
-			end
-			for _, Sub in (Page.SubPages or {}) do
-				-- sections live under subpages via Library.Sections
 			end
 		end
 	end
@@ -2950,7 +3040,6 @@ Library.GetLayout = function()
 end
 
 Library.SaveLayout = function()
-	-- persisted via next config save; also write layout.json if FS available
 	if not HasFS or not HasFS() then
 		return
 	end
@@ -2983,7 +3072,6 @@ Library.ApplyLayout = function(Layout)
 				if Section.Name == Entry.Name and Section.Frame then
 					if Entry.Order then Section.Frame.LayoutOrder = Entry.Order end
 					if Entry.Side and Section.Side ~= Entry.Side then
-						-- move column if possible
 						local Frame = Section.Frame
 						local Parent = Frame.Parent and Frame.Parent.Parent
 						if Parent then
@@ -3062,7 +3150,6 @@ Library.SetFlag = function(Flag: string, Value: any, Transparency: number?)
 		if Transparency ~= nil then
 			Entry.Set(Value, Transparency)
 		elseif type(Value) == "boolean" then
-
 			Entry.Set(Value, true)
 		else
 			Entry.Set(Value)
@@ -3277,14 +3364,14 @@ Library.LoadingScreen = function(self: Library, propertyTable: {})
 		ZIndex = 50;
 	})
 	Add("UIShadow", { Parent = Card; BlurRadius = UD(0, 24); Spread = UFO(6, 6); Transparency = 0.55; })
-	Add("UICorner", { Parent = Card; CornerRadius = UD(0, 8); })
+	Add("UICorner", { Parent = Card; CornerRadius = UI_CORNER; })
 	Add("UIStroke", { Parent = Card; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	Add("TextLabel", {
 		Parent = Card;
 		BackgroundTransparency = 1;
 		Position = UFO(0, 28);
 		Size = UD2(1, 0, 0, 22);
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		Text = Props.Title;
 		TextColor3 = Library.Theme.Text;
 		TextSize = 18;
@@ -3294,7 +3381,7 @@ Library.LoadingScreen = function(self: Library, propertyTable: {})
 		BackgroundTransparency = 1;
 		Position = UFO(0, 54);
 		Size = UD2(1, 0, 0, 18);
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		Text = Props.Subtitle;
 		TextColor3 = Library.Theme.Text;
 		TextTransparency = 0.45;
@@ -3308,14 +3395,14 @@ Library.LoadingScreen = function(self: Library, propertyTable: {})
 		AnchorPoint = V2(0.5, 0);
 		Size = UD2(0.7, 0, 0, 6);
 	})
-	Add("UICorner", { Parent = BarBG; CornerRadius = UD(1, 0); })
+	Add("UICorner", { Parent = BarBG; CornerRadius = UI_CORNER; })
 	local Bar = Add("Frame", {
 		Parent = BarBG;
 		BackgroundColor3 = Library.Theme.Accent;
 		BorderSizePixel = 0;
 		Size = UD2(0, 0, 1, 0);
 	})
-	Add("UICorner", { Parent = Bar; CornerRadius = UD(1, 0); })
+	Add("UICorner", { Parent = Bar; CornerRadius = UI_CORNER; })
 	Add("UIGradient", {
 		Parent = Bar;
 		Color = CS{ CSK(0, Library.Theme.AccentDark), CSK(1, Library.Theme.Accent) };
@@ -3350,21 +3437,22 @@ Library.SetScale = function(Scale: number)
 	Scale = MC(Scale / (Scale > 2 and 100 or 1), 0.75, 1.25)
 	Library.UIScale = Scale
 	for _, Win in Library.Windows do
-		if Win.Canvas then
-			local Existing = Win.Canvas:FindFirstChildOfClass("UIScale")
+		local Canvas = Win.Mainframe or Win.Canvas
+		if Canvas then
+			local Existing = Canvas:FindFirstChildOfClass("UIScale")
 			if not Existing then
-				Existing = Add("UIScale", { Parent = Win.Canvas })
+				Existing = Add("UIScale", { Parent = Canvas })
 			end
 
-			local Abs = Win.Canvas.AbsolutePosition
-			local Size = Win.Canvas.AbsoluteSize
+			local Abs = Canvas.AbsolutePosition
+			local Size = Canvas.AbsoluteSize
 			local Center = Abs + Size * 0.5
 			Existing.Scale = Scale
 			task.defer(function()
-				if not Win.Canvas or not Win.Canvas.Parent then return end
-				local NewSize = Win.Canvas.AbsoluteSize
+				if not Canvas or not Canvas.Parent then return end
+				local NewSize = Canvas.AbsoluteSize
 				local NewPos = Center - NewSize * 0.5
-				Win.Canvas.Position = ClampToScreen(Win.Canvas, UFO(NewPos.X, NewPos.Y))
+				Canvas.Position = ClampToScreen(Canvas, UFO(NewPos.X, NewPos.Y))
 			end)
 		end
 	end
@@ -3424,7 +3512,7 @@ Library.SetWatermark = function(Text: string?, Enabled: boolean?)
 		ZIndex = 120;
 		Visible = Library.Watermark.Enabled == true;
 	})
-	Add("UICorner", { Parent = Frame; CornerRadius = UD(0, 7); })
+	Add("UICorner", { Parent = Frame; CornerRadius = UI_CORNER; })
 	Add("UIStroke", { Parent = Frame; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	Add("UIShadow", { Parent = Frame; BlurRadius = UD(0, 16); Spread = UFO(4, 4); Transparency = 0.7; })
 	Add("UIPadding", { Parent = Frame; PaddingLeft = UD(0, 10); PaddingRight = UD(0, 12); })
@@ -3443,7 +3531,7 @@ Library.SetWatermark = function(Text: string?, Enabled: boolean?)
 		Size = UFO(16, 16);
 		LayoutOrder = 0;
 	})
-	Add("UICorner", { Parent = Logo; CornerRadius = UD(0, 4); })
+	Add("UICorner", { Parent = Logo; CornerRadius = UI_CORNER; })
 	Add("UIGradient", {
 		Parent = Logo;
 		Color = CS{ CSK(0, Library.Theme.AccentDark), CSK(1, Library.Theme.Accent) };
@@ -3456,9 +3544,9 @@ Library.SetWatermark = function(Text: string?, Enabled: boolean?)
 			BackgroundTransparency = 1;
 			AutomaticSize = AS.X;
 			Size = UFO(0, 32);
-			FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+			FontFace = UI_FONT;
 			Text = Text;
-			TextColor3 = Dim and RGB(150, 154, 170) or RGB(235, 236, 240);
+			TextColor3 = Dim and Library.Theme.TextDim or Library.Theme.Text;
 			TextSize = 12;
 			LayoutOrder = Order;
 		})
@@ -3565,8 +3653,8 @@ Library.SetKeybindList = function(Enabled: boolean?)
 		ZIndex = 120;
 		Active = true;
 	})
-	Add("UICorner", { Parent = Panel; CornerRadius = UD(0, 10); })
-	Add("UIStroke", { Parent = Panel; ApplyStrokeMode = ASM.Border; Color = RGB(30, 30, 36); })
+	Add("UICorner", { Parent = Panel; CornerRadius = UI_CORNER; })
+	Add("UIStroke", { Parent = Panel; ApplyStrokeMode = ASM.Border; Color = T.Border; })
 	Add("UIPadding", {
 		Parent = Panel;
 		PaddingTop = UD(0, 12);
@@ -3597,7 +3685,7 @@ Library.SetKeybindList = function(Enabled: boolean?)
 		Position = UFO(0, 7);
 		BorderSizePixel = 0;
 	})
-	Add("UICorner", { Parent = HeaderIcon; CornerRadius = UD(1, 0); })
+	Add("UICorner", { Parent = HeaderIcon; CornerRadius = UI_CORNER; })
 	Add("UIGradient", {
 		Parent = HeaderIcon;
 		Color = CS{ CSK(0, T.AccentDark), CSK(1, T.Accent) };
@@ -3608,7 +3696,7 @@ Library.SetKeybindList = function(Enabled: boolean?)
 		BackgroundTransparency = 1;
 		Position = UFO(16, 0);
 		Size = UD2(1, -16, 1, 0);
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		Text = "Keybind list";
 		TextColor3 = T.Text;
 		TextSize = 14;
@@ -3639,9 +3727,9 @@ Library.SetKeybindList = function(Enabled: boolean?)
 			BackgroundTransparency = 1;
 			Position = Pos;
 			Size = Size;
-			FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+			FontFace = UI_FONT;
 			Text = Text;
-			TextColor3 = RGB(160, 160, 165);
+			TextColor3 = T.TextDim;
 			TextSize = 12;
 			TextXAlignment = Align;
 		})
@@ -3654,7 +3742,7 @@ Library.SetKeybindList = function(Enabled: boolean?)
 		Parent = Body;
 		Name = "Divider";
 		Size = UD2(1, 0, 0, 1);
-		BackgroundColor3 = RGB(21, 21, 23);
+		BackgroundColor3 = T.Border;
 		BorderSizePixel = 0;
 		LayoutOrder = 2;
 	})
@@ -3714,13 +3802,13 @@ Library.UpdateKeybindList = function(Name: string, KeyText: string, Active: bool
 			Parent = Folder;
 			Text = "";
 			AutoButtonColor = false;
-			BackgroundColor3 = RGB(25, 25, 29);
+			BackgroundColor3 = T.SurfaceAlt;
 			BackgroundTransparency = 1;
 			Size = UD2(1, 0, 0, 26);
 			BorderSizePixel = 0;
 			ZIndex = 122;
 		})
-		Add("UICorner", { Parent = Frame; CornerRadius = UD(0, 6); })
+		Add("UICorner", { Parent = Frame; CornerRadius = UI_CORNER; })
 
 		local NameLbl = Add("TextLabel", {
 			Parent = Frame;
@@ -3728,7 +3816,7 @@ Library.UpdateKeybindList = function(Name: string, KeyText: string, Active: bool
 			BackgroundTransparency = 1;
 			Position = UFO(6, 0);
 			Size = UFO(118, 26);
-			FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+			FontFace = UI_FONT;
 			Text = Name;
 			TextColor3 = T.Text;
 			TextSize = 12;
@@ -3741,7 +3829,7 @@ Library.UpdateKeybindList = function(Name: string, KeyText: string, Active: bool
 			BackgroundTransparency = 1;
 			Position = UFO(128, 0);
 			Size = UFO(72, 26);
-			FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+			FontFace = UI_FONT;
 			Text = KeyText;
 			TextColor3 = T.Text;
 			TextSize = 12;
@@ -3754,9 +3842,9 @@ Library.UpdateKeybindList = function(Name: string, KeyText: string, Active: bool
 			BackgroundTransparency = 1;
 			Position = UFO(200, 0);
 			Size = UFO(56, 26);
-			FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+			FontFace = UI_FONT;
 			Text = Mode;
-			TextColor3 = RGB(160, 160, 165);
+			TextColor3 = T.TextDim;
 			TextSize = 12;
 			TextXAlignment = TXA.Right;
 		})
@@ -3790,7 +3878,7 @@ Library.UpdateKeybindList = function(Name: string, KeyText: string, Active: bool
 		Tween(Row.Frame, { BackgroundTransparency = 1 }, 0.12)
 		Row.Name.TextColor3 = T.Text
 		Row.Key.TextColor3 = T.Text
-		Row.Status.TextColor3 = RGB(160, 160, 165)
+		Row.Status.TextColor3 = T.TextDim
 	end
 end
 
@@ -3897,23 +3985,23 @@ Library.Notify = function(propertyTable: {})
 	local Card = Add("CanvasGroup", {
 		Parent = Shell;
 		Size = UFS(1, 1);
-		BackgroundColor3 = T.Background or RGB(14, 14, 16);
+		BackgroundColor3 = T.Background;
 		BorderSizePixel = 0;
 		GroupTransparency = 1;
 		ZIndex = 1;
 	})
-	Add("UICorner", { Parent = Card; CornerRadius = UD(0, 8); })
+	Add("UICorner", { Parent = Card; CornerRadius = UI_CORNER; })
 	local CardStroke = Add("UIStroke", {
 		Parent = Card;
 		ApplyStrokeMode = ASM.Border;
-		Color = T.Border or RGB(30, 30, 36);
+		Color = T.Border;
 		Thickness = 1;
 	})
 
 	Add("Frame", {
 		Parent = Card;
 		Size = UD2(1, 0, 0, 1);
-		BackgroundColor3 = RGB(255, 255, 255);
+		BackgroundColor3 = T.Text;
 		BackgroundTransparency = 0.93;
 		BorderSizePixel = 0;
 		ZIndex = 2;
@@ -3937,7 +4025,7 @@ Library.Notify = function(propertyTable: {})
 		Parent = Body;
 		BackgroundTransparency = 1;
 		Size = UD2(1, -16, 0, 14);
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		Text = Props.Title or "Notification";
 		TextColor3 = TypeColor;
 		TextSize = 12;
@@ -3953,9 +4041,9 @@ Library.Notify = function(propertyTable: {})
 		Size = UFO(16, 16);
 		BackgroundTransparency = 1;
 		Text = "x";
-		TextColor3 = RGB(140, 144, 155);
+		TextColor3 = T.TextDim;
 		TextSize = 12;
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		AutoButtonColor = false;
 		ZIndex = 5;
 	})
@@ -3963,7 +4051,7 @@ Library.Notify = function(propertyTable: {})
 		Tween(Close, { TextColor3 = T.Text }, 0.12)
 	end)
 	Close.MouseLeave:Connect(function()
-		Tween(Close, { TextColor3 = RGB(140, 144, 155) }, 0.15)
+		Tween(Close, { TextColor3 = T.TextDim }, 0.15)
 	end)
 
 	if HasBody then
@@ -3972,9 +4060,9 @@ Library.Notify = function(propertyTable: {})
 			BackgroundTransparency = 1;
 			Position = UFO(0, 15);
 			Size = UD2(1, -4, 0, 14);
-			FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+			FontFace = UI_FONT;
 			Text = Content;
-			TextColor3 = RGB(155, 158, 168);
+			TextColor3 = T.TextDim;
 			TextSize = 11;
 			TextXAlignment = TXA.Left;
 			TextTruncate = ETT.AtEnd;
@@ -3987,18 +4075,18 @@ Library.Notify = function(propertyTable: {})
 		AnchorPoint = V2(0, 1);
 		Position = UD2(0, 10, 1, -4);
 		Size = UD2(1, -20, 0, 2);
-		BackgroundColor3 = T.SurfaceAlt or RGB(28, 28, 30);
+		BackgroundColor3 = T.SurfaceAlt;
 		BorderSizePixel = 0;
 		ZIndex = 5;
 	})
-	Add("UICorner", { Parent = BarBG; CornerRadius = UD(1, 0); })
+	Add("UICorner", { Parent = BarBG; CornerRadius = UI_CORNER; })
 	local Bar = Add("Frame", {
 		Parent = BarBG;
 		Size = UFS(1, 1);
 		BackgroundColor3 = T.Accent;
 		BorderSizePixel = 0;
 	})
-	Add("UICorner", { Parent = Bar; CornerRadius = UD(1, 0); })
+	Add("UICorner", { Parent = Bar; CornerRadius = UI_CORNER; })
 
 	Tween(Shell, { Position = UFO(0, 0) }, 0.35, ES.Quint)
 	Tween(Card, { GroupTransparency = 0 }, 0.22)
@@ -4042,12 +4130,14 @@ end
 
 Library.Unload = function()
 	Library.ToggleMenu(false)
+	Library.SetMobileToggle(false)
 	if Library.Watermark.Frame then Library.Watermark.Frame.Visible = false end
 	if Library.KeybindList.Frame then Library.KeybindList.Frame.Visible = false end
 	if Library._NotifyHost then Library._NotifyHost.Visible = false end
 	for _, Win in Library.Windows do
-		if Win.Canvas then
-			Win.Canvas:Destroy()
+		local Canvas = Win.Mainframe or Win.Canvas
+		if Canvas then
+			Canvas:Destroy()
 		end
 	end
 	table.clear(Library.Windows)
@@ -4066,8 +4156,9 @@ Library.ToggleMenu = function(State: boolean?)
 	end
 	Library.MenuOpen = State
 	for _, Win in Library.Windows do
-		if Win.Canvas then
-			Win.Canvas.Visible = State
+		local Canvas = Win.Mainframe or Win.Canvas
+		if Canvas then
+			Canvas.Visible = State
 		end
 	end
 	if Library.OpenPopup and Library.OpenPopup.Close then
@@ -4107,7 +4198,7 @@ Library.BuildConfigPage = function(self: Library, Window: any)
 		BorderSizePixel = 0;
 		Size = UD2(1, 0, 0, 160);
 	})
-	Add("UICorner", { Parent = ListHost; CornerRadius = UD(0, 6); })
+	Add("UICorner", { Parent = ListHost; CornerRadius = UI_CORNER; })
 	Add("UIStroke", { Parent = ListHost; ApplyStrokeMode = ASM.Border; Color = Library.Theme.Border; })
 	local ListScroll = Add("ScrollingFrame", {
 		Parent = ListHost;
@@ -4125,7 +4216,7 @@ Library.BuildConfigPage = function(self: Library, Window: any)
 	local function PaintRows()
 		for Name, Row in ListRows do
 			local On = Selected.Name == Name
-			Row.TextColor3 = On and Library.Theme.Accent or RGB(200, 204, 220)
+			Row.TextColor3 = On and Library.Theme.Accent or Library.Theme.TextDim
 			Row.BackgroundTransparency = On and 0.85 or 1
 			Row.BackgroundColor3 = Library.Theme.Accent
 		end
@@ -4150,9 +4241,9 @@ Library.BuildConfigPage = function(self: Library, Window: any)
 				Parent = ListScroll;
 				BackgroundTransparency = 1;
 				Size = UD2(1, 0, 0, 28);
-				FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+				FontFace = UI_FONT;
 				Text = "No configs yet";
-				TextColor3 = RGB(120, 124, 140);
+				TextColor3 = Library.Theme.TextDim;
 				TextSize = 12;
 			})
 			ListRows["__empty"] = Empty :: any
@@ -4165,14 +4256,14 @@ Library.BuildConfigPage = function(self: Library, Window: any)
 					BackgroundTransparency = 1;
 					BorderSizePixel = 0;
 					Size = UD2(1, 0, 0, 26);
-					FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+					FontFace = UI_FONT;
 					Text = "  " .. Name;
-					TextColor3 = RGB(200, 204, 220);
+					TextColor3 = Library.Theme.TextDim;
 					TextSize = 13;
 					TextXAlignment = TXA.Left;
 					LayoutOrder = i;
 				})
-				Add("UICorner", { Parent = Row; CornerRadius = UD(0, 4); })
+				Add("UICorner", { Parent = Row; CornerRadius = UI_CORNER; })
 				Row.Activated:Connect(function()
 					SelectConfig(Name)
 				end)
@@ -4191,7 +4282,6 @@ Library.BuildConfigPage = function(self: Library, Window: any)
 		Value = "default";
 		Placeholder = "name";
 		Flag = "ConfigName";
-
 	})
 
 	local function SelectedName(): string?
@@ -4442,7 +4532,6 @@ Library.BuildConfigPage = function(self: Library, Window: any)
 	return Page
 end
 
-
 Library.FormatExpiry = function(ExpiresAt)
 	if not ExpiresAt or type(ExpiresAt) ~= "number" then
 		return "Lifetime"
@@ -4567,7 +4656,6 @@ local function RunValidate(Key, Finish)
 	end
 end
 
-
 Library.SignOut = function()
 	if not Library.Auth or not Library.Auth.Enabled then
 		return
@@ -4577,8 +4665,9 @@ Library.SignOut = function()
 	Library.Auth.Token = nil
 	Library.Auth.ExpiresAt = nil
 	for _, Win in Library.Windows do
-		if Win.Canvas then
-			local Footer = Win.Canvas:FindFirstChild("Footer")
+		local Canvas = Win.Mainframe or Win.Canvas
+		if Canvas then
+			local Footer = Canvas:FindFirstChild("Footer")
 			if Footer then
 				local Exp = Footer:FindFirstChild("KeyExpiry")
 				if Exp then Exp:Destroy() end
@@ -4595,7 +4684,7 @@ Library._MountKeySystem = function(Window)
 	if not Library.Auth or not Library.Auth.Enabled or Library.Auth.Validated then
 		return
 	end
-	local Canvas = Window and Window.Canvas
+	local Canvas = Window and (Window.Mainframe or Window.Canvas)
 	if not Canvas then
 		return
 	end
@@ -4629,21 +4718,21 @@ Library._MountKeySystem = function(Window)
 		Parent = Canvas;
 		Name = "KeySystem";
 		Size = UFS(1, 1);
-		BackgroundColor3 = T.Background or RGB(9, 8, 8);
+		BackgroundColor3 = T.Background;
 		BorderSizePixel = 0;
 		ZIndex = 80;
 		Active = true;
 	})
-	Add("UICorner", { Parent = Layer; CornerRadius = UD(0, 5); })
-	Add("UIStroke", { Parent = Layer; ApplyStrokeMode = ASM.Border; Color = T.Border or RGB(36, 37, 37); })
+	Add("UICorner", { Parent = Layer; CornerRadius = UI_CORNER; })
+	Add("UIStroke", { Parent = Layer; ApplyStrokeMode = ASM.Border; Color = T.Border; })
 	Add("UIShadow", { Parent = Layer; BlurRadius = UD(0, 20); Spread = UFO(5, 5); Transparency = 0.65; })
 	Library.ThemeLink(Layer, "BackgroundColor3", "Background")
 	BindDrag(Canvas, Layer, true)
 
-	local Hair = Add("Frame", {
+	Add("Frame", {
 		Parent = Layer;
 		Size = UD2(1, 0, 0, 1);
-		BackgroundColor3 = RGB(255, 255, 255);
+		BackgroundColor3 = T.Text;
 		BackgroundTransparency = 0.93;
 		BorderSizePixel = 0;
 		ZIndex = 81;
@@ -4662,7 +4751,7 @@ Library._MountKeySystem = function(Window)
 	})
 	Library.ThemeLink(AccentGlow, "ImageColor3", "Accent")
 
-	local SideGlow = Add("ImageLabel", {
+	Add("ImageLabel", {
 		Parent = Layer;
 		AnchorPoint = V2(0, 1);
 		Position = UD2(0, -20, 1, 20);
@@ -4688,9 +4777,9 @@ Library._MountKeySystem = function(Window)
 		Parent = Form;
 		BackgroundTransparency = 1;
 		Size = UD2(1, 0, 0, 28);
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		Text = Opts.Title or "Login";
-		TextColor3 = T.Text or RGB(255, 255, 255);
+		TextColor3 = T.Text;
 		TextSize = 22;
 		ZIndex = 82;
 	})
@@ -4710,12 +4799,12 @@ Library._MountKeySystem = function(Window)
 		Parent = Form;
 		Position = UFO(0, 52);
 		Size = UD2(1, 0, 0, 42);
-		BackgroundColor3 = T.Surface or RGB(15, 14, 15);
+		BackgroundColor3 = T.Surface;
 		BorderSizePixel = 0;
 		ZIndex = 82;
 	})
-	Add("UICorner", { Parent = KeyWrap; CornerRadius = UD(0, 6); })
-	Add("UIStroke", { Parent = KeyWrap; ApplyStrokeMode = ASM.Border; Color = T.Border or RGB(36, 37, 37); })
+	Add("UICorner", { Parent = KeyWrap; CornerRadius = UI_CORNER; })
+	Add("UIStroke", { Parent = KeyWrap; ApplyStrokeMode = ASM.Border; Color = T.Border; })
 	Library.ThemeLink(KeyWrap, "BackgroundColor3", "Surface")
 	local KeyIcon = Add("ImageLabel", {
 		Parent = KeyWrap;
@@ -4723,7 +4812,7 @@ Library._MountKeySystem = function(Window)
 		Position = UD2(0, 12, 0.5, 0);
 		Size = UFO(14, 14);
 		BackgroundTransparency = 1;
-		ImageColor3 = RGB(140, 144, 155);
+		ImageColor3 = T.TextDim;
 		ZIndex = 83;
 	})
 	pcall(function() KeyIcon.Image = ResolveIcon("key-round") end)
@@ -4733,10 +4822,10 @@ Library._MountKeySystem = function(Window)
 		Size = UD2(1, -48, 1, 0);
 		BackgroundTransparency = 1;
 		PlaceholderText = Opts.Placeholder or "License key";
-		PlaceholderColor3 = RGB(120, 124, 135);
+		PlaceholderColor3 = T.TextDim;
 		Text = "";
 		TextColor3 = T.Text;
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		TextSize = 13;
 		TextXAlignment = TXA.Left;
 		ClearTextOnFocus = false;
@@ -4747,19 +4836,19 @@ Library._MountKeySystem = function(Window)
 		Parent = Form;
 		Position = UFO(0, 106);
 		Size = UD2(1, 0, 0, 42);
-		BackgroundColor3 = RGB(255, 255, 255);
+		BackgroundColor3 = T.Text;
 		AutoButtonColor = false;
 		Text = Opts.ButtonText or "Sign in";
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		TextSize = 14;
 		TextColor3 = RGB(0, 0, 0);
 		BorderSizePixel = 0;
 		ZIndex = 82;
 	})
-	Add("UICorner", { Parent = SignIn; CornerRadius = UD(0, 6); })
+	Add("UICorner", { Parent = SignIn; CornerRadius = UI_CORNER; })
 	local SignGrad = Add("UIGradient", {
 		Parent = SignIn;
-		Color = CS{ CSK(0, T.AccentDark or RGB(78, 88, 129)), CSK(1, T.Accent or RGB(138, 156, 229)) };
+		Color = CS{ CSK(0, T.AccentDark), CSK(1, T.Accent) };
 		Rotation = -70;
 	})
 	Library.ThemeLink(SignGrad, "Gradient", "AccentDark", "Accent")
@@ -4775,14 +4864,14 @@ Library._MountKeySystem = function(Window)
 	local RememberBtn = Add("TextButton", {
 		Parent = RememberRow;
 		Size = UFO(18, 18);
-		BackgroundColor3 = T.Surface or RGB(15, 14, 15);
+		BackgroundColor3 = T.Surface;
 		Text = "";
 		AutoButtonColor = false;
 		BorderSizePixel = 0;
 		ZIndex = 83;
 	})
-	Add("UICorner", { Parent = RememberBtn; CornerRadius = UD(0, 4); })
-	local RemStroke = Add("UIStroke", { Parent = RememberBtn; Color = T.Border or RGB(36, 37, 37); Thickness = 1; })
+	Add("UICorner", { Parent = RememberBtn; CornerRadius = UI_CORNER; })
+	local RemStroke = Add("UIStroke", { Parent = RememberBtn; Color = T.Border; Thickness = 1; })
 	local Check = Add("TextLabel", {
 		Parent = RememberBtn;
 		Size = UFS(1, 1);
@@ -4790,13 +4879,13 @@ Library._MountKeySystem = function(Window)
 		Text = "✓";
 		TextColor3 = T.Accent;
 		TextSize = 13;
-		Font = Enum.Font.GothamBold;
+		FontFace = UI_FONT;
 		TextTransparency = RememberOn and 0 or 1;
 		ZIndex = 84;
 	})
 	if RememberOn then
 		RememberBtn.BackgroundColor3 = T.Accent
-		Check.TextColor3 = RGB(255, 255, 255)
+		Check.TextColor3 = T.Text
 		RemStroke.Transparency = 1
 	end
 	Add("TextLabel", {
@@ -4805,8 +4894,8 @@ Library._MountKeySystem = function(Window)
 		Size = UD2(1, -22, 1, 0);
 		BackgroundTransparency = 1;
 		Text = "Remember me";
-		TextColor3 = RGB(160, 160, 165);
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		TextColor3 = T.TextDim;
+		FontFace = UI_FONT;
 		TextSize = 12;
 		TextXAlignment = TXA.Left;
 		ZIndex = 83;
@@ -4814,7 +4903,7 @@ Library._MountKeySystem = function(Window)
 	RememberBtn.Activated:Connect(function()
 		RememberOn = not RememberOn
 		Tween(RememberBtn, { BackgroundColor3 = RememberOn and Library.Theme.Accent or Library.Theme.Surface }, 0.12)
-		Tween(Check, { TextTransparency = RememberOn and 0 or 1; TextColor3 = RememberOn and RGB(255, 255, 255) or Library.Theme.Accent }, 0.12)
+		Tween(Check, { TextTransparency = RememberOn and 0 or 1; TextColor3 = RememberOn and Library.Theme.Text or Library.Theme.Accent }, 0.12)
 		Tween(RemStroke, { Transparency = RememberOn and 1 or 0 }, 0.12)
 	end)
 
@@ -4825,7 +4914,7 @@ Library._MountKeySystem = function(Window)
 		BackgroundTransparency = 1;
 		Text = "";
 		TextColor3 = RGB(240, 120, 120);
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		FontFace = UI_FONT;
 		TextSize = 12;
 		ZIndex = 82;
 	})
@@ -4839,7 +4928,7 @@ Library._MountKeySystem = function(Window)
 			BackgroundTransparency = 1;
 			Text = "Get a key";
 			TextColor3 = T.Accent;
-			FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+			FontFace = UI_FONT;
 			TextSize = 12;
 			AutoButtonColor = false;
 			ZIndex = 82;
@@ -4858,13 +4947,13 @@ Library._MountKeySystem = function(Window)
 		Parent = Canvas;
 		Name = "AuthLoading";
 		Size = UFS(1, 1);
-		BackgroundColor3 = T.Background or RGB(9, 8, 8);
+		BackgroundColor3 = T.Background;
 		BorderSizePixel = 0;
 		Visible = false;
 		ZIndex = 90;
 	})
-	Add("UICorner", { Parent = Loading; CornerRadius = UD(0, 5); })
-	Add("UIStroke", { Parent = Loading; ApplyStrokeMode = ASM.Border; Color = T.Border or RGB(36, 37, 37); })
+	Add("UICorner", { Parent = Loading; CornerRadius = UI_CORNER; })
+	Add("UIStroke", { Parent = Loading; ApplyStrokeMode = ASM.Border; Color = T.Border; })
 	Add("UIShadow", { Parent = Loading; BlurRadius = UD(0, 20); Spread = UFO(5, 5); Transparency = 0.65; })
 	Library.ThemeLink(Loading, "BackgroundColor3", "Background")
 	local Spin = Add("ImageLabel", {
@@ -4885,8 +4974,8 @@ Library._MountKeySystem = function(Window)
 		Size = UFO(160, 18);
 		BackgroundTransparency = 1;
 		Text = "Signing in...";
-		TextColor3 = RGB(160, 160, 165);
-		FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+		TextColor3 = T.TextDim;
+		FontFace = UI_FONT;
 		TextSize = 13;
 		ZIndex = 91;
 	})
@@ -4905,8 +4994,8 @@ Library._MountKeySystem = function(Window)
 				Ch.Visible = Vis ~= false
 			end
 		end
-		if Library.Auth.ShowExpiry and Library.Auth.ExpiresAt and Window.Canvas then
-			local Footer = Window.Canvas:FindFirstChild("Footer")
+		if Library.Auth.ShowExpiry and Library.Auth.ExpiresAt and Canvas then
+			local Footer = Canvas:FindFirstChild("Footer")
 			if Footer then
 				local Exp = Footer:FindFirstChild("KeyExpiry")
 				if not Exp then
@@ -4918,7 +5007,7 @@ Library._MountKeySystem = function(Window)
 						AutomaticSize = AS.X;
 						Size = UFO(0, 13);
 						BackgroundTransparency = 1;
-						FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal);
+						FontFace = UI_FONT;
 						TextColor3 = Library.Theme.Accent;
 						TextSize = 12;
 						TextTransparency = 0.15;
@@ -5000,6 +5089,5 @@ Library._MountKeySystem = function(Window)
 		task.defer(function() Attempt(Saved) end)
 	end
 end
-
 
 return Library
