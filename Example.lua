@@ -2,7 +2,7 @@
 -- example key is "lumen"
 
 
-local Lumen = loadstring(game:HttpGet("https://raw.githubusercontent.com/chromatiks/Lumen/main/Library.lua"))()
+local Lumen = loadstring(game:HttpGet("https://raw.githubusercontent.com/xqmt/Lumen/refs/heads/main/Library.lua"))()
 
 Lumen.SetConfigFolder("Lumen")
 
